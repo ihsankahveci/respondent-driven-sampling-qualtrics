@@ -158,39 +158,57 @@ async function addQRCodePage(
 
 	currentY += 20;
 
+	// Location 1
 	doc.fontSize(11)
 		.font('Helvetica')
-		.text('• Highline United Methodist Church', margin + 10, currentY, {
+		.text('• My Friends Place', margin + 10, currentY, {
 			align: 'left',
 			width: contentWidth - 10,
 		});
 
 	currentY += 15;
 
-	doc.text('  13015 1st AVE S, Burien, WA 98168', margin + 10, currentY, {
+	doc.text('  5850 Hollywood Blvd, LA CA 90028', margin + 10, currentY, {
 		align: 'left',
 		width: contentWidth - 10,
 	});
 
 	currentY += 20;
 
-	doc.text('• Interview Dates and Hours:', margin + 10, currentY, {
+	// Location 2
+	doc.text('• LA LGBT Center', margin + 10, currentY, {
 		align: 'left',
 		width: contentWidth - 10,
 	});
 
 	currentY += 15;
 
-	doc.text('  Monday - Friday (11/17 - 11/21)', margin + 10, currentY, {
+	doc.text('  1118 N. McCadden Pl. LA, CA 90038', margin + 10, currentY, {
+		align: 'left',
+		width: contentWidth - 10,
+	});
+
+	currentY += 20;
+
+	// Location 3
+	doc.text('• YP2F', margin + 10, currentY, {
 		align: 'left',
 		width: contentWidth - 10,
 	});
 
 	currentY += 15;
 
-	doc.text('  10am to 3pm', margin + 10, currentY, {
+	doc.text('  4308 Burns Ave LA CA 90029', margin + 10, currentY, {
 		align: 'left',
 		width: contentWidth - 10,
+	});
+
+	currentY += 20;
+
+	doc.text('And more locations across LA County.', margin + 10, currentY, {
+		align: 'left',
+		width: contentWidth - 10,
+		font: 'Helvetica-Oblique',
 	});
 
 	currentY += 50;
