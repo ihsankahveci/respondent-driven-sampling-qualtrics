@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 /**
- * Script to generate N seeds for a given location
+ * Script to generate N seeds for a given location with LA Youth Count PDF format
  * Usage: npm run generate-seeds -- <hubName|objectId> <count>
- * Example: npm run generate-seeds -- "Main Hub" 10
+ * Example: npm run generate-seeds -- "My Friends Place" 10
  * Example: npm run generate-seeds -- 507f1f77bcf86cd799439011 10
  */
 
@@ -21,348 +21,893 @@ const serverRequire = createRequire(path.join(__dirname, '../server/package.json
 const QRCode = serverRequire('qrcode');
 const PDFDocument = serverRequire('pdfkit');
 const mongoose = serverRequire('mongoose');
-const logoPath = path.join(__dirname, 'assets/logo.png');
 
 // ===== PDF Generation Helper Functions =====
 
 function createOutputDirectory(): string {
-	const outputDir = path.join(__dirname, 'seeds');
-	if (!fs.existsSync(outputDir)) {
-		fs.mkdirSync(outputDir, { recursive: true });
-	}
-	return outputDir;
+    const outputDir = path.join(__dirname, 'seeds');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+    return outputDir;
 }
 
 function generateTimestampFilename(locationName: string, outputDir: string): string {
-	const now = new Date();
-	const timestamp = [
-		now.getFullYear(),
-		String(now.getMonth() + 1).padStart(2, '0'),
-		String(now.getDate()).padStart(2, '0'),
-		String(now.getHours()).padStart(2, '0'),
-		String(now.getMinutes()).padStart(2, '0'),
-		String(now.getSeconds()).padStart(2, '0'),
-	].join('');
-	const sanitizedLocationName = locationName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-	const filename = `seeds-${sanitizedLocationName}-${timestamp}.pdf`;
-	return path.join(outputDir, filename);
+    const now = new Date();
+    const timestamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+        String(now.getHours()).padStart(2, '0'),
+        String(now.getMinutes()).padStart(2, '0'),
+        String(now.getSeconds()).padStart(2, '0')
+    ].join('');
+    const sanitizedLocationName = locationName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    const filename = `la-youth-count-seeds-${sanitizedLocationName}-${timestamp}.pdf`;
+    return path.join(outputDir, filename);
 }
 
 async function generateQRCodeBuffer(surveyCode: string, qrSize: number): Promise<Buffer> {
-	// Encode only the referral code (no URL) so QR codes work across any deployment
-	const qrDataUrl = await QRCode.toDataURL(surveyCode, {
-		width: qrSize,
-		margin: 1,
-		errorCorrectionLevel: 'M',
-	});
-	return Buffer.from(qrDataUrl.split(',')[1], 'base64');
+    // Encode only the referral code (no URL) so QR codes work across any deployment
+    const qrDataUrl = await QRCode.toDataURL(surveyCode, {
+        width: qrSize,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+    });
+    return Buffer.from(qrDataUrl.split(',')[1], 'base64');
 }
 
-async function addQRCodePage(
-	doc: any,
-	surveyCode: string,
-	locationName: string,
-	isFirstPage: boolean
-): Promise<void> {
-	if (!isFirstPage) {
-		doc.addPage();
-	}
+async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 30;
+    const contentWidth = pageWidth - margin * 2;
 
-	const pageWidth = doc.page.width;
-	const margin = 50;
-	const contentWidth = pageWidth - margin * 2;
+    let currentY = margin;
 
-	let currentY = margin;
+    // Header with title and QR code
+    const qrSize = 120;
+    const qrX = pageWidth - margin - qrSize;
+    const titleWidth = qrX - margin - 10;
 
-	if (fs.existsSync(logoPath)) {
-		const logoWidth = 60;
-		doc.image(logoPath, (pageWidth - logoWidth) / 2, currentY, {
-			fit: [logoWidth, logoWidth],
-		});
-		currentY += logoWidth + 10;
-	}
+    // Title
+    doc.fontSize(21)
+        .font('Helvetica-Bold')
+        .fillColor('#1a1a1a')
+        .text('LOS ANGELES YOUTH COUNT', margin, currentY, {
+            width: titleWidth,
+            align: 'left'
+        });
 
-	// Title
-	doc.fontSize(18).font('Helvetica-Bold').text('Understanding Unsheltered Homelessness', margin, currentY, {
-		align: 'center',
-		width: contentWidth,
-	});
+    currentY += 40;
 
-	currentY += 40;
+    doc.fontSize(15)
+        .font('Helvetica-Bold')
+        .text('UNSHELTERED YOUTH COUNT COUPON', margin, currentY, {
+            width: titleWidth,
+            align: 'left'
+        });
 
-	// Instructions
-	doc.fontSize(12)
-		.font('Helvetica')
-		.text(
-			'Bring this coupon to one of the locations below to complete a survey about your experience being unsheltered (including living in an RV or car/vehicle) and to receive a ',
-			margin,
-			currentY,
-			{
-				align: 'left',
-				width: contentWidth,
-				continued: true,
-			},
-		)
-		.font('Helvetica-Bold')
-		.text('$20', { continued: true })
-		.font('Helvetica')
-		.text(' Gift Card.');
+    // QR Code - ACTUAL QR CODE INSTEAD OF PLACEHOLDER
+    const qrBuffer = await generateQRCodeBuffer(surveyCode, qrSize);
+    doc.image(qrBuffer, qrX, margin, {
+        width: qrSize,
+        height: qrSize
+    });
 
-	currentY += 50;
+    // Display survey code below QR code as blue hyperlink
+    const qrCodeTextY = margin + qrSize + 5;
+    doc.fontSize(10)
+        .font('Helvetica-Bold')
+        .fillColor('#1a1a1a ')
+        .text(surveyCode, qrX, qrCodeTextY, {
+            width: qrSize,
+            align: 'center',
+            link: `https://respondent-driven-sampling.azurewebsites.net/apply-referral?surveyCode=${surveyCode}`,
+            underline: true
+        });
 
-	doc.fontSize(12)
-		.font('Helvetica')
-		.text(
-			'Our locations are accessible with free parking and bike racks unless marked otherwise.',
-			margin,
-			currentY,
-			{
-				align: 'left',
-				width: contentWidth,
-			},
-		);
+    currentY = margin + qrSize + 20;
 
-	currentY += 25;
+    // Intro paragraph
+    const introText = 'Young people under the age of 25 who are sleeping outside or in RVs, cars, or other locations not meant for human habitation are needed for a survey from January 5th through 31st. ';
+    const introBoldText = 'PLEASE BRING THIS COUPON TO A LOCATION BELOW.';
+    
+    const fullIntroText = introText + introBoldText;
+    const introHeight = doc.heightOfString(fullIntroText, {
+        width: contentWidth,
+        align: 'justify'
+    });
+    
+    doc.fontSize(11.5)
+        .font('Helvetica')
+        .text(introText, margin, currentY, {
+            width: contentWidth,
+            align: 'justify',
+            continued: true
+        })
+        .font('Helvetica-Bold')
+        .text(introBoldText);
 
-	doc.text('Pets and service animals welcome.', margin, currentY, {
-		align: 'left',
-		width: contentWidth,
-	});
+    currentY += introHeight + 35;
 
-	currentY += 50;
+    // Incentive
+    const incentiveText = '$20 Visa cards will be provided to those who complete the survey!';
+    const incentiveHeight = doc.heightOfString(incentiveText, {
+        width: contentWidth
+    });
+    
+    doc.fontSize(11.5)
+        .font('Helvetica-Bold')
+        .text(incentiveText, margin, currentY, {
+            width: contentWidth,
+            align: 'left'
+        });
 
-	// QR Code and Referral Code
-	const qrSize = 100;
-	const qrX = (pageWidth - qrSize) / 2;
-	
-	const qrBuffer = await generateQRCodeBuffer(surveyCode, qrSize);
-	doc.image(qrBuffer, qrX, currentY, {
-		width: qrSize,
-		height: qrSize,
-	});
+    currentY += incentiveHeight + 20;
 
-	currentY += qrSize + 15;
+    // Hub sites header box
+    const hubBoxY = currentY;
+    const hubBoxHeight = 75;
+    
+    doc.rect(margin, hubBoxY, contentWidth, hubBoxHeight)
+        .fillAndStroke('#f9f9f9', '#1a1a1a');
 
-	doc.fontSize(16).font('Helvetica-Bold').text(`Referral Code: ${surveyCode}`, margin, currentY, {
-		align: 'center',
-		width: contentWidth,
-	});
+    doc.fillColor('#1a1a1a')
+        .fontSize(14.5)
+        .font('Helvetica-Bold')
+        .text('HOLLYWOOD AND SOUTH LA HUB SITES (SPA 4 and 6)', margin + 15, hubBoxY + 12, {
+            width: contentWidth - 30,
+            align: 'center'
+        });
 
-	currentY += 50;
+    // Calculate centered position for the hub sites text with blue link
+    const hubSitesFullText = 'View all Hub Sites in LA County at youthcount.org/map';
+    const hubSitesFullTextWidth = doc.widthOfString(hubSitesFullText);
+    const hubSitesStartX = margin + 15 + (contentWidth - 30 - hubSitesFullTextWidth) / 2;
 
-	// Locations section
-	doc.fontSize(12).font('Helvetica-Bold').text('Locations', margin, currentY, {
-		align: 'left',
-		width: contentWidth,
-	});
+    doc.fontSize(10.75)
+        .font('Helvetica')
+        .fillColor('#1a1a1a')
+        .text('View all Hub Sites in LA County at ', hubSitesStartX, hubBoxY + 35, {
+            continued: true
+        })
+        .fillColor('#0066cc')
+        .text('youthcount.org/map', {
+            link: 'https://youthcount.org/map',
+            underline: true
+        });
 
-	currentY += 20;
+    doc.fontSize(9.25)
+        .font('Helvetica')
+        .fillColor('#1a1a1a')
+        .text('TIMES LISTED BELOW ARE DESIGNATED SURVEYING HOURS. AGENCIES OPEN OUTSIDE OF THESE HOURS.', margin + 15, hubBoxY + 55, {
+            width: contentWidth - 30,
+            align: 'center'
+        });
 
-	// Location 1
-	doc.fontSize(11)
-		.font('Helvetica')
-		.text('• My Friends Place', margin + 10, currentY, {
-			align: 'left',
-			width: contentWidth - 10,
-		});
+    currentY = hubBoxY + hubBoxHeight;
 
-	currentY += 15;
+    // Locations table
+    const tableY = currentY;
+    const tableHeight = 230;
+    
+    // Draw outer border (without top)
+    doc.lineWidth(2)
+        .rect(margin, tableY, contentWidth, tableHeight)
+        .stroke();
 
-	doc.text('  5850 Hollywood Blvd, LA CA 90028', margin + 10, currentY, {
-		align: 'left',
-		width: contentWidth - 10,
-	});
+    // Column configuration
+    const colPadding = 10;
+    const colGap = 10;
+    const col1X = margin + colPadding;
+    const col1Width = (contentWidth - colGap - colPadding * 2) / 2;
+    const col2X = margin + col1Width + colGap + colPadding;
+    const col2Width = col1Width;
 
-	currentY += 20;
+    // Left column - 3 locations
+    let leftY = tableY + 16;
 
-	// Location 2
-	doc.text('• LA LGBT Center', margin + 10, currentY, {
-		align: 'left',
-		width: contentWidth - 10,
-	});
+    // Location 1: East Hollywood
+    doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#1a1a1a');
+    let textHeight = doc.heightOfString('EAST HOLLYWOOD YP2F HQ', { width: col1Width - colPadding });
+    doc.text('EAST HOLLYWOOD YP2F HQ', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
 
-	currentY += 15;
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('4308 Burns Ave LA CA 90029', { width: col1Width - colPadding });
+    doc.text('4308 Burns Ave LA CA 90029', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
 
-	doc.text('  1118 N. McCadden Pl. LA, CA 90038', margin + 10, currentY, {
-		align: 'left',
-		width: contentWidth - 10,
-	});
+    textHeight = doc.heightOfString('SURVEYING TUES and THURS 5:00 PM - 8:00 PM', { width: col1Width - colPadding });
+    doc.text('SURVEYING TUES and THURS 5:00 PM - 8:00 PM', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 15;
 
-	currentY += 20;
+    // Location 2: My Friends Place
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('HOLLYWOOD: MY FRIENDS PLACE', { width: col1Width - colPadding });
+    doc.text('HOLLYWOOD: MY FRIENDS PLACE', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
 
-	// Location 3
-	doc.text('• YP2F', margin + 10, currentY, {
-		align: 'left',
-		width: contentWidth - 10,
-	});
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('5850 Hollywood Blvd, LA CA 90028', { width: col1Width - colPadding });
+    doc.text('5850 Hollywood Blvd, LA CA 90028', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
 
-	currentY += 15;
+    textHeight = doc.heightOfString('SURVEYING TUES, THURS, FRI 9:30 AM - 3:30 PM', { width: col1Width - colPadding });
+    doc.text('SURVEYING TUES, THURS, FRI 9:30 AM - 3:30 PM', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 15;
 
-	doc.text('  4308 Burns Ave LA CA 90029', margin + 10, currentY, {
-		align: 'left',
-		width: contentWidth - 10,
-	});
+    // Location 3: Ruth's Place
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('SOUTH LA: RUTH\'S PLACE', { width: col1Width - colPadding });
+    doc.text('SOUTH LA: RUTH\'S PLACE', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
 
-	currentY += 20;
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('3101 S. Grand Los Angeles 90007', { width: col1Width - colPadding });
+    doc.text('3101 S. Grand Los Angeles 90007', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
 
-	doc.text('And more locations across LA County.', margin + 10, currentY, {
-		align: 'left',
-		width: contentWidth - 10,
-		font: 'Helvetica-Oblique',
-	});
+    textHeight = doc.heightOfString('SURVEYING TUES - FRI 10:00 AM - 4:00 PM', { width: col1Width - colPadding });
+    doc.text('SURVEYING TUES - FRI 10:00 AM - 4:00 PM', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
 
-	currentY += 50;
+    // Right column - 2 locations
+    let rightY = tableY + 16;
 
-	// Contact info
-	doc.fontSize(10).font('Helvetica').text('For questions, please call +1 (833) 393-1621', margin, currentY, {
-		align: 'center',
-		width: contentWidth,
-	});
+    // Location 4: LA LGBT CENTER
+    doc.fontSize(11.5)
+        .font('Helvetica-Bold')
+        .text('HOLLYWOOD: LA LGBT CENTER', col2X, rightY, {
+            width: col2Width - colPadding,
+            align: 'left'
+        });
+    rightY += 17;
+
+    doc.fontSize(11.5)
+        .font('Helvetica')
+        .text('1118 N. McCadden Pl. LA, CA 90038', col2X, rightY, {
+            width: col2Width - colPadding,
+            align: 'left'
+        });
+    rightY += 15;
+
+    doc.fontSize(11.5)
+        .text('SURVEYING: Mon - Fri 10:00AM - 6:00PM (Closed Mon Jan 19th), SAT, SUN 9:00AM - 1:00PM', col2X, rightY, {
+            width: col2Width - colPadding,
+            align: 'left'
+        });
+    rightY += 55;
+
+    // Location 5: Watts Labor
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', { width: col2Width - colPadding });
+    doc.text('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 5;
+
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('10950 S Central Ave, Los Angeles, CA 90059', { width: col2Width - colPadding });
+    doc.text('10950 S Central Ave, Los Angeles, CA 90059', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 5;
+
+    textHeight = doc.heightOfString('SURVEYING TUES- FRI 9:00 AM - 3:30 PM', { width: col2Width - colPadding });
+    doc.text('SURVEYING TUES- FRI 9:00 AM - 3:30 PM', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+
+    currentY = tableY + tableHeight + 15;
+
+    // Uber section
+    const uberBoxY = currentY;
+    const uberBoxHeight = 92;
+    
+    doc.rect(margin, uberBoxY, contentWidth, uberBoxHeight)
+        .fillAndStroke('#f9f9f9', '#000000');
+    
+    // Add left border accent
+    doc.lineWidth(4)
+        .moveTo(margin, uberBoxY)
+        .lineTo(margin, uberBoxY + uberBoxHeight)
+        .stroke('#000000');
+
+    doc.fillColor('#1a1a1a')
+        .fontSize(11.5)
+        .font('Helvetica-Bold')
+        .text('$10 off your Uber rides to and from a hub site with this voucher', margin + 12, uberBoxY + 12, {
+            width: contentWidth - 24,
+            align: 'left'
+        });
+
+    let uberY = uberBoxY + 32;
+    
+    const voucherLineText = '• UBER VOUCHER: RKRBSSFQJFS https://r.uber.com/rkrbssfqjfs';
+    doc.fontSize(11.5).font('Helvetica');
+    const voucherHeight = doc.heightOfString(voucherLineText, { width: contentWidth - 24 });
+    
+    doc.text('• UBER VOUCHER: ', margin + 12, uberY, {
+        width: contentWidth - 24,
+        align: 'left',
+        continued: true
+    })
+    .font('Courier-Bold')
+    .text('RKRBSSFQJFS ', { continued: true })
+    .font('Helvetica')
+    .fillColor('#0066cc')
+    .text('https://r.uber.com/rkrbssfqjfs', {
+        link: 'https://r.uber.com/rkrbssfqjfs',
+        underline: true
+    });
+
+    uberY += voucherHeight + 8;
+
+    const uberDetailsText = '• Receive $10 off of 2 Uber trips to and from any designated Hub sites during surveying times using the voucher code. Visit youthcount.org/uber for more details.';
+    doc.fontSize(11.5).font('Helvetica').fillColor('#1a1a1a');
+    const detailsHeight = doc.heightOfString(uberDetailsText, { width: contentWidth - 24 });
+    
+    doc.text(uberDetailsText, margin + 12, uberY, {
+        width: contentWidth - 24,
+        align: 'left'
+    });
+
+    currentY = uberBoxY + uberBoxHeight + 12;
+
+    // Footer
+    doc.moveTo(margin, currentY)
+        .lineTo(pageWidth - margin, currentY)
+        .lineWidth(2)
+        .stroke('#dddddd');
+
+    currentY += 10;
+
+    doc.fontSize(11.5)
+        .font('Helvetica')
+        .fillColor('#1a1a1a')
+        .text('Data will be used to report to Housing and Urban Development (HUD). More info at ', margin, currentY, {
+            width: contentWidth,
+            align: 'left',
+            continued: true
+        })
+        .fillColor('#0066cc')
+        .text('youthcount.org', {
+            link: 'https://youthcount.org',
+            underline: true
+        });
+}
+
+async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 30;
+    const contentWidth = pageWidth - margin * 2;
+
+    let currentY = margin;
+
+    // Header with title and QR code
+    const qrSize = 120;
+    const qrX = pageWidth - margin - qrSize;
+    const titleWidth = qrX - margin - 10;
+
+    // Title
+    doc.fontSize(21)
+        .font('Helvetica-Bold')
+        .fillColor('#1a1a1a')
+        .text('LOS ANGELES YOUTH COUNT', margin, currentY, {
+            width: titleWidth,
+            align: 'left'
+        });
+
+    currentY += 40;
+
+    doc.fontSize(15)
+        .font('Helvetica-Bold')
+        .text('CUPÓN DEL CONTEO DE JÓVENES SIN HOGAR', margin, currentY, {
+            width: titleWidth,
+            align: 'left'
+        });
+
+    // QR Code - ACTUAL QR CODE INSTEAD OF PLACEHOLDER
+    const qrBuffer = await generateQRCodeBuffer(surveyCode, qrSize);
+    doc.image(qrBuffer, qrX, margin, {
+        width: qrSize,
+        height: qrSize
+    });
+
+    // Display survey code below QR code as blue hyperlink
+    const qrCodeTextY = margin + qrSize + 5;
+    doc.fontSize(10)
+        .font('Helvetica-Bold')
+        .fillColor('#1a1a1a')
+        .text(surveyCode, qrX, qrCodeTextY, {
+            width: qrSize,
+            align: 'center',
+            link: `https://respondent-driven-sampling.azurewebsites.net/apply-referral?surveyCode=${surveyCode}`,
+            underline: true
+        });
+
+    currentY = margin + qrSize + 20;
+
+    // Intro paragraph
+    const introText = 'Se necesitan jóvenes menores de 25 años que estén durmiendo afuera o en vehículos recreativos, autos u otros lugares no destinados para la habitación humana para una encuesta del 5 al 31 de enero. ';
+    const introBoldText = '¡LLEVE ESTE CUPÓN A UNO DE LOS LUGARES INDICADOS ABAJO!';
+    
+    const fullIntroText = introText + introBoldText;
+    const introHeight = doc.heightOfString(fullIntroText, {
+        width: contentWidth,
+        align: 'justify'
+    });
+    
+    doc.fontSize(11.5)
+        .font('Helvetica')
+        .text(introText, margin, currentY, {
+            width: contentWidth,
+            align: 'justify',
+            continued: true
+        })
+        .font('Helvetica-Bold')
+        .text(introBoldText);
+
+    currentY += introHeight + 20;
+
+    // Incentive
+    const incentiveText = '¡TARJETA VISA DE $20 después de completar una encuesta!';
+    const incentiveHeight = doc.heightOfString(incentiveText, {
+        width: contentWidth
+    });
+    
+    doc.fontSize(11.5)
+        .font('Helvetica-Bold')
+        .text(incentiveText, margin, currentY, {
+            width: contentWidth,
+            align: 'left'
+        });
+
+    currentY += incentiveHeight + 20;
+
+    // Hub sites header box
+    const hubBoxY = currentY;
+    const hubBoxHeight = 75;
+    
+    doc.rect(margin, hubBoxY, contentWidth, hubBoxHeight)
+        .fillAndStroke('#f9f9f9', '#1a1a1a');
+
+    doc.fillColor('#1a1a1a')
+        .fontSize(14.5)
+        .font('Helvetica-Bold')
+        .text('CENTROS (HUBS) DE HOLLYWOOD Y SOUTH LA (SPA 4 y 6)', margin + 15, hubBoxY + 12, {
+            width: contentWidth - 30,
+            align: 'center'
+        });
+
+    // Calculate centered position for the hub sites text with blue link
+    const hubSitesFullTextEs = 'Vea los Centros (Hubs) en el Condado de Los Ángeles en youthcount.org/map';
+    const hubSitesFullTextWidthEs = doc.widthOfString(hubSitesFullTextEs);
+    const hubSitesStartXEs = margin + 15 + (contentWidth - 30 - hubSitesFullTextWidthEs) / 2;
+
+    doc.fontSize(10.75)
+        .font('Helvetica')
+        .fillColor('#1a1a1a')
+        .text('Vea los Centros (Hubs) en el Condado de Los Ángeles en ', hubSitesStartXEs, hubBoxY + 35, {
+            continued: true
+        })
+        .fillColor('#0066cc')
+        .text('youthcount.org/map', {
+            link: 'https://youthcount.org/map',
+            underline: true
+        });
+
+    doc.fontSize(9.25)
+        .font('Helvetica')
+        .fillColor('#1a1a1a')
+        .text('LOS HORARIOS QUE SE INDICAN SON LAS HORAS DESIGNADAS PARA LAS ENCUESTAS. LAS AGENCIAS ESTÁN ABIERTAS FUERA DE ESTOS HORARIOS.', margin + 15, hubBoxY + 55, {
+            width: contentWidth - 30,
+            align: 'center'
+        });
+
+    currentY = hubBoxY + hubBoxHeight;
+
+    // Locations table
+    const tableY = currentY;
+    const tableHeight = 230;
+    
+    // Draw outer border (without top)
+    doc.lineWidth(2)
+        .rect(margin, tableY, contentWidth, tableHeight)
+        .stroke();
+
+    // Column configuration
+    const colPadding = 10;
+    const colGap = 10;
+    const col1X = margin + colPadding;
+    const col1Width = (contentWidth - colGap - colPadding * 2) / 2;
+    const col2X = margin + col1Width + colGap + colPadding;
+    const col2Width = col1Width;
+
+    // Left column - 3 locations
+    let leftY = tableY + 16;
+
+    // Location 1: East Hollywood
+    doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#1a1a1a');
+    let textHeight = doc.heightOfString('EAST HOLLYWOOD YP2F HQ', { width: col1Width - colPadding });
+    doc.text('EAST HOLLYWOOD YP2F HQ', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
+
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('4308 Burns Ave LA CA 90029', { width: col1Width - colPadding });
+    doc.text('4308 Burns Ave LA CA 90029', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
+
+    textHeight = doc.heightOfString('ENCUESTAS: Mar y Jue 5:00 PM - 8:00 PM', { width: col1Width - colPadding });
+    doc.text('ENCUESTAS: Mar y Jue 5:00 PM - 8:00 PM', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 15;
+
+    // Location 2: My Friends Place
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('HOLLYWOOD: MY FRIENDS PLACE', { width: col1Width - colPadding });
+    doc.text('HOLLYWOOD: MY FRIENDS PLACE', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
+
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('5850 Hollywood Blvd, LA CA 90028', { width: col1Width - colPadding });
+    doc.text('5850 Hollywood Blvd, LA CA 90028', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
+
+    textHeight = doc.heightOfString('ENCUESTAS: Mar, Jue, Vie 9:30 AM - 3:30 PM', { width: col1Width - colPadding });
+    doc.text('ENCUESTAS: Mar, Jue, Vie 9:30 AM - 3:30 PM', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 15;
+
+    // Location 3: Ruth's Place
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('SOUTH LA: RUTH\'S PLACE', { width: col1Width - colPadding });
+    doc.text('SOUTH LA: RUTH\'S PLACE', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
+
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('3101 S. Grand Los Angeles 90007', { width: col1Width - colPadding });
+    doc.text('3101 S. Grand Los Angeles 90007', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+    leftY += textHeight + 5;
+
+    textHeight = doc.heightOfString('ENCUESTAS: Mar-Vie 10:00 AM - 4:00 PM', { width: col1Width - colPadding });
+    doc.text('ENCUESTAS: Mar-Vie 10:00 AM - 4:00 PM', col1X, leftY, {
+        width: col1Width - colPadding,
+        align: 'left'
+    });
+
+    // Right column - 2 locations
+    let rightY = tableY + 16;
+
+    // Location 4: LA LGBT Center
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('HOLLYWOOD: LA LGBT CENTER', { width: col2Width - colPadding });
+    doc.text('HOLLYWOOD: LA LGBT CENTER', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 5;
+
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('1118 N. McCadden Pl. LA, CA 90038', { width: col2Width - colPadding });
+    doc.text('1118 N. McCadden Pl. LA, CA 90038', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 5;
+
+    const lgbtHoursText = 'ENCUESTAS: Lun-Vie 10:00 AM - 6:00 PM (Cerrado el lunes 19 de enero); Sáb, Dom 9:00 AM - 1:00 PM';
+    textHeight = doc.heightOfString(lgbtHoursText, { width: col2Width - colPadding });
+    doc.text(lgbtHoursText, col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 15;
+
+    // Location 5: Watts Labor
+    doc.fontSize(11.5).font('Helvetica-Bold');
+    textHeight = doc.heightOfString('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', { width: col2Width - colPadding });
+    doc.text('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 5;
+
+    doc.fontSize(11.5).font('Helvetica');
+    textHeight = doc.heightOfString('10950 S Central Ave, Los Angeles, CA 90059', { width: col2Width - colPadding });
+    doc.text('10950 S Central Ave, Los Angeles, CA 90059', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+    rightY += textHeight + 5;
+
+    textHeight = doc.heightOfString('ENCUESTAS: Mar-Vie 9:00 AM - 3:30 PM', { width: col2Width - colPadding });
+    doc.text('ENCUESTAS: Mar-Vie 9:00 AM - 3:30 PM', col2X, rightY, {
+        width: col2Width - colPadding,
+        align: 'left'
+    });
+
+    currentY = tableY + tableHeight + 15;
+
+    // Uber section
+    const uberBoxY = currentY;
+    const uberBoxHeight = 92;
+    
+    doc.rect(margin, uberBoxY, contentWidth, uberBoxHeight)
+        .fillAndStroke('#f9f9f9', '#000000');
+    
+    // Add left border accent
+    doc.lineWidth(4)
+        .moveTo(margin, uberBoxY)
+        .lineTo(margin, uberBoxY + uberBoxHeight)
+        .stroke('#000000');
+
+    doc.fillColor('#1a1a1a')
+        .fontSize(11.5)
+        .font('Helvetica-Bold')
+        .text('Ahorre $10 en sus viajes de Uber (ida y vuelta) con este código', margin + 12, uberBoxY + 12, {
+            width: contentWidth - 24,
+            align: 'left'
+        });
+
+    let uberY = uberBoxY + 32;
+    
+    const voucherLineText = '• CUPÓN DE UBER: RKRBSSFQJFS https://r.uber.com/rkrbssfqjfs';
+    doc.fontSize(11.5).font('Helvetica');
+    const voucherHeight = doc.heightOfString(voucherLineText, { width: contentWidth - 24 });
+    
+    doc.text('• CUPÓN DE UBER: ', margin + 12, uberY, {
+        width: contentWidth - 24,
+        align: 'left',
+        continued: true
+    })
+    .font('Courier-Bold')
+    .text('RKRBSSFQJFS ', { continued: true })
+    .font('Helvetica')
+    .fillColor('#0066cc')
+    .text('https://r.uber.com/rkrbssfqjfs', {
+        link: 'https://r.uber.com/rkrbssfqjfs',
+        underline: true
+    });
+
+    uberY += voucherHeight + 8;
+
+    const uberDetailsText = '• Reciba $10 de descuento en cada viaje de Uber (ida y vuelta) a cualquier centro (Hub) designado durante los horarios de encuesta usando el código. Más detalles en youthcount.org/uber.';
+    doc.fontSize(11.5).font('Helvetica').fillColor('#1a1a1a');
+    const detailsHeight = doc.heightOfString(uberDetailsText, { width: contentWidth - 24 });
+    
+    doc.text(uberDetailsText, margin + 12, uberY, {
+        width: contentWidth - 24,
+        align: 'left'
+    });
+
+    currentY = uberBoxY + uberBoxHeight + 12;
+
+    // Footer
+    doc.moveTo(margin, currentY)
+        .lineTo(pageWidth - margin, currentY)
+        .lineWidth(2)
+        .stroke('#dddddd');
+
+    currentY += 10;
+
+    doc.fontSize(11.5)
+        .font('Helvetica')
+        .fillColor('#1a1a1a')
+        .text('Los datos se utilizarán para informar al Departamento de Vivienda y Desarrollo Urbano (HUD). Más info en ', margin, currentY, {
+            width: contentWidth,
+            align: 'left',
+            continued: true
+        })
+        .fillColor('#0066cc')
+        .text('youthcount.org', {
+            link: 'https://youthcount.org',
+            underline: true
+        });
 }
 
 async function generatePDF(seeds: any[], locationName: string): Promise<void> {
-	const outputDir = createOutputDirectory();
-	const filepath = generateTimestampFilename(locationName, outputDir);
+    const outputDir = createOutputDirectory();
+    const filepath = generateTimestampFilename(locationName, outputDir);
 
-	// Create PDF document
-	const doc = new PDFDocument({
-		size: 'LETTER',
-		margin: 50,
-	});
+    const doc = new PDFDocument({
+        size: 'LETTER',
+        margin: 30,
+        autoFirstPage: false
+    });
 
-	const stream = fs.createWriteStream(filepath);
-	doc.pipe(stream);
+    const stream = fs.createWriteStream(filepath);
+    doc.pipe(stream);
 
-	// Generate one page per seed
-	for (let i = 0; i < seeds.length; i++) {
-		await addQRCodePage(doc, seeds[i].surveyCode, locationName, i === 0);
-	}
+    // Generate two-sided coupons (English + Spanish) for each seed
+    for (const seed of seeds) {
+        // Add English page
+        doc.addPage();
+        await addEnglishPage(doc, seed.surveyCode);
+        
+        // Add Spanish page
+        doc.addPage();
+        await addSpanishPage(doc, seed.surveyCode);
+    }
 
-	doc.end();
+    doc.end();
 
-	// Wait for stream to finish
-	await new Promise((resolve, reject) => {
-		stream.on('finish', resolve);
-		stream.on('error', reject);
-	});
+    await new Promise((resolve, reject) => {
+        stream.on('finish', resolve);
+        stream.on('error', reject);
+    });
 
-	console.log(`\n✓ PDF generated: ${filepath}`);
-	console.log(`  Contains ${seeds.length} QR code(s), one per page`);
+    console.log(`\n✓ PDF generated: ${filepath}`);
+    console.log(`  Total pages: ${seeds.length * 2} (${seeds.length} English + ${seeds.length} Spanish)`);
 }
 
 // ===== Seed Generation Helper Functions =====
 
 function isValidObjectId(identifier: string): boolean {
-	return mongoose.Types.ObjectId.isValid(identifier) && /^[0-9a-fA-F]{24}$/.test(identifier);
+    return mongoose.Types.ObjectId.isValid(identifier) && /^[0-9a-fA-F]{24}$/.test(identifier);
 }
 
 async function findLocationByIdentifier(locationIdentifier: string, Location: any): Promise<any> {
-	const isObjectId = isValidObjectId(locationIdentifier);
+    const isObjectId = isValidObjectId(locationIdentifier);
 
-	let location;
-	if (isObjectId) {
-		console.log(`Looking up location with ObjectId: "${locationIdentifier}"...`);
-		location = await Location.findById(locationIdentifier);
-	} else {
-		console.log(`Looking up location with hubName: "${locationIdentifier}"...`);
-		location = await Location.findOne({ hubName: locationIdentifier });
-	}
+    let location;
+    if (isObjectId) {
+        console.log(`Looking up location with ObjectId: "${locationIdentifier}"...`);
+        location = await Location.findById(locationIdentifier);
+    } else {
+        console.log(`Looking up location with hubName: "${locationIdentifier}"...`);
+        location = await Location.findOne({ hubName: locationIdentifier });
+    }
 
-	if (!location) {
-		const idType = isObjectId ? 'ObjectId' : 'hubName';
-		throw new Error(`Location with ${idType} "${locationIdentifier}" not found`);
-	}
+    if (!location) {
+        const idType = isObjectId ? 'ObjectId' : 'hubName';
+        throw new Error(`Location with ${idType} "${locationIdentifier}" not found`);
+    }
 
-	console.log(`Found location: ${location.hubName} (${location._id}) ✓\n`);
-	return location;
+    console.log(`Found location: ${location.hubName} (${location._id}) ✓\n`);
+    return location;
 }
 
 async function createSeed(surveyCode: string, locationId: any, Seed: any, index: number, total: number): Promise<any> {
-	try {
-		const seed = await Seed.create({
-			surveyCode,
-			locationObjectId: locationId,
-			isFallback: false,
-		});
+    try {
+        const seed = await Seed.create({
+            surveyCode,
+            locationObjectId: locationId,
+            isFallback: false,
+        });
 
-		console.log(`  [${index + 1}/${total}] Created seed: ${seed.surveyCode} (${seed._id})`);
-		return seed;
-	} catch (error) {
-		console.error(`  [${index + 1}/${total}] Failed to create seed:`, error);
-		throw error;
-	}
+        console.log(`  [${index + 1}/${total}] Created seed: ${seed.surveyCode} (${seed._id})`);
+        return seed;
+    } catch (error) {
+        console.error(`  [${index + 1}/${total}] Failed to create seed:`, error);
+        throw error;
+    }
 }
 
 async function generateSeedsForLocation(
-	location: any,
-	count: number,
-	Seed: any,
-	generateUniqueSurveyCode: () => Promise<string>,
+    location: any,
+    count: number,
+    Seed: any,
+    generateUniqueSurveyCode: () => Promise<string>,
 ): Promise<any[]> {
-	console.log(`Generating ${count} seed(s)...\n`);
-	const createdSeeds: any[] = [];
+    console.log(`Generating ${count} seed(s)...\n`);
+    const createdSeeds: any[] = [];
 
-	for (let i = 0; i < count; i++) {
-		const surveyCode = await generateUniqueSurveyCode();
-		const seed = await createSeed(surveyCode, location._id, Seed, i, count);
-		createdSeeds.push(seed);
-	}
+    for (let i = 0; i < count; i++) {
+        const surveyCode = await generateUniqueSurveyCode();
+        const seed = await createSeed(surveyCode, location._id, Seed, i, count);
+        createdSeeds.push(seed);
+    }
 
-	return createdSeeds;
+    return createdSeeds;
 }
 
 function printSeedsSummary(seeds: any[], locationName: string): void {
-	console.log(`\n✓ Successfully generated ${seeds.length} seed(s) for location "${locationName}"`);
-	console.log('\nGenerated Survey Codes:');
-	seeds.forEach((seed, index) => {
-		console.log(`  ${index + 1}. ${seed.surveyCode}`);
-	});
+    console.log(`\n✓ Successfully generated ${seeds.length} seed(s) for location "${locationName}"`);
+    console.log('\nGenerated Survey Codes:');
+    seeds.forEach((seed, index) => {
+        console.log(`  ${index + 1}. ${seed.surveyCode}`);
+    });
 }
 
 async function generateSeeds(locationIdentifier: string, count: number): Promise<void> {
-	const Location = (await import('../server/src/database/location/mongoose/location.model.js')).default;
-	const Seed = (await import('../server/src/database/seed/mongoose/seed.model.js')).default;
-	const { generateUniqueSurveyCode } = await import('../server/src/database/survey/survey.controller.js');
-	const connectDB = (await import('../server/src/database/index.js')).default;
+    const Location = (await import('../server/src/database/location/mongoose/location.model.js')).default;
+    const Seed = (await import('../server/src/database/seed/mongoose/seed.model.js')).default;
+    const { generateUniqueSurveyCode } = await import('../server/src/database/survey/survey.controller.js');
+    const connectDB = (await import('../server/src/database/index.js')).default;
 
-	try {
-		console.log('Connecting to database...');
-		await connectDB();
-		console.log('Connected to database ✓\n');
+    try {
+        console.log('Connecting to database...');
+        await connectDB();
+        console.log('Connected to database ✓\n');
 
-		const location = await findLocationByIdentifier(locationIdentifier, Location);
-		const createdSeeds = await generateSeedsForLocation(location, count, Seed, generateUniqueSurveyCode);
+        const location = await findLocationByIdentifier(locationIdentifier, Location);
+        const createdSeeds = await generateSeedsForLocation(location, count, Seed, generateUniqueSurveyCode);
 
-		printSeedsSummary(createdSeeds, location.hubName);
+        printSeedsSummary(createdSeeds, location.hubName);
 
-		console.log('\n📄 Generating PDF with QR codes...');
-		await generatePDF(createdSeeds, location.hubName);
-	} catch (error) {
-		console.error('\n✗ Error:', error instanceof Error ? error.message : error);
-		process.exit(1);
-	} finally {
-		await mongoose.connection.close();
-		console.log('\nDatabase connection closed.');
-		process.exit(0);
-	}
+        console.log('\n📄 Generating PDF with QR codes (LA Youth Count format)...');
+        await generatePDF(createdSeeds, location.hubName);
+    } catch (error) {
+        console.error('\n✗ Error:', error instanceof Error ? error.message : error);
+        process.exit(1);
+    } finally {
+        await mongoose.connection.close();
+        console.log('\nDatabase connection closed.');
+        process.exit(0);
+    }
 }
 
 // Parse command line arguments
 const args = process.argv.slice(2);
 
 if (args.length !== 2) {
-	console.error('Usage: npm run generate-seeds -- <hubName|objectId> <count>');
-	console.error('Example: npm run generate-seeds -- "Main Hub" 10');
-	console.error('Example: npm run generate-seeds -- 507f1f77bcf86cd799439011 10');
-	process.exit(1);
+    console.error('Usage: npm run generate-seeds -- <hubName|objectId> <count>');
+    console.error('Example: npm run generate-seeds -- "My Friends Place" 10');
+    console.error('Example: npm run generate-seeds -- 507f1f77bcf86cd799439011 10');
+    process.exit(1);
 }
 
 const [locationIdentifier, countStr] = args;
 const count = parseInt(countStr, 10);
 
 if (isNaN(count) || count <= 0) {
-	console.error('Error: count must be a positive number');
-	process.exit(1);
+    console.error('Error: count must be a positive number');
+    process.exit(1);
 }
 
 // Run the script
