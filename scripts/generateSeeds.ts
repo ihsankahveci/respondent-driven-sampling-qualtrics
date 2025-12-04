@@ -672,12 +672,13 @@ async function findLocationByIdentifier(locationIdentifier: string, Location: an
     return location;
 }
 
-async function createSeed(surveyCode: string, locationId: any, Seed: any, index: number, total: number): Promise<any> {
+async function createSeed(surveyCode: string, locationId: any, Seed: any, templateKey: string, index: number, total: number): Promise<any> {
     try {
         const seed = await Seed.create({
             surveyCode,
             locationObjectId: locationId,
             isFallback: false,
+            templateKey,
         });
 
         console.log(`  [${index + 1}/${total}] Created seed: ${seed.surveyCode} (${seed._id})`);
@@ -693,13 +694,14 @@ async function generateSeedsForLocation(
     count: number,
     Seed: any,
     generateUniqueSurveyCode: () => Promise<string>,
+    templateKey: string,
 ): Promise<any[]> {
     console.log(`Generating ${count} seed(s)...\n`);
     const createdSeeds: any[] = [];
 
     for (let i = 0; i < count; i++) {
         const surveyCode = await generateUniqueSurveyCode();
-        const seed = await createSeed(surveyCode, location._id, Seed, i, count);
+        const seed = await createSeed(surveyCode, location._id, Seed, templateKey, i, count);
         createdSeeds.push(seed);
     }
 
@@ -726,7 +728,7 @@ async function generateSeeds(locationIdentifier: string, count: number, template
         console.log('Connected to database ✓\n');
 
         const location = await findLocationByIdentifier(locationIdentifier, Location);
-        const createdSeeds = await generateSeedsForLocation(location, count, Seed, generateUniqueSurveyCode);
+        const createdSeeds = await generateSeedsForLocation(location, count, Seed, generateUniqueSurveyCode, templateKey || 'metro');
 
         printSeedsSummary(createdSeeds, location.hubName);
 
