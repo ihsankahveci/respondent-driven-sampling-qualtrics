@@ -2,8 +2,8 @@
 /**
  * Script to generate N seeds for a given location with LA Youth Count PDF format
  * Usage: npm run generate-seeds -- <hubName|objectId> <count>
- * Example: npm run generate-seeds -- "My Friends Place" 10
- * Example: npm run generate-seeds -- 507f1f77bcf86cd799439011 10
+ * Example: npm run generate-seeds -- "Test Hub" 10
+ * Example: npm run generate-seeds -- 692f9100056e7a6957d0f0a2 10
  */
 
 import fs from 'fs';
@@ -21,6 +21,36 @@ const serverRequire = createRequire(path.join(__dirname, '../server/package.json
 const QRCode = serverRequire('qrcode');
 const PDFDocument = serverRequire('pdfkit');
 const mongoose = serverRequire('mongoose');
+
+// ===== Location Template Configuration =====
+
+interface LocationInfo {
+    name: string;
+    address: string;
+    hoursEn: string;
+    hoursEs: string;
+}
+
+interface LocationTemplate {
+    headerEn: string;
+    headerEs: string;
+    subheaderEn: string;
+    subheaderEs: string;
+    warningEn: string;
+    warningEs: string;
+    locations: LocationInfo[];
+}
+
+// Load templates from external JSON file
+function loadTemplates(): Record<string, LocationTemplate> {
+    const templatesPath = path.join(__dirname, 'seed_templates.json');
+    try {
+        const templatesContent = fs.readFileSync(templatesPath, 'utf-8');
+        return JSON.parse(templatesContent);
+    } catch (error) {
+        throw new Error(`Failed to load seed templates from ${templatesPath}: ${error instanceof Error ? error.message : error}`);
+    }
+}
 
 // ===== PDF Generation Helper Functions =====
 
@@ -57,7 +87,94 @@ async function generateQRCodeBuffer(surveyCode: string, qrSize: number): Promise
     return Buffer.from(qrDataUrl.split(',')[1], 'base64');
 }
 
-async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
+function renderLocationsTable(
+    doc: any,
+    locations: LocationInfo[],
+    tableY: number,
+    margin: number,
+    contentWidth: number,
+    useSpanish: boolean = false
+): void {
+    const tableHeight = 230;
+    
+    // Draw outer border (without top)
+    doc.lineWidth(2)
+        .rect(margin, tableY, contentWidth, tableHeight)
+        .stroke();
+
+    // Column configuration
+    const colPadding = 10;
+    const colGap = 10;
+    const col1X = margin + colPadding;
+    const col1Width = (contentWidth - colGap - colPadding * 2) / 2;
+    const col2X = margin + col1Width + colGap + colPadding;
+    const col2Width = col1Width;
+
+    // Determine how many locations per column
+    const locationsPerColumn = Math.ceil(locations.length / 2);
+    const leftLocations = locations.slice(0, locationsPerColumn);
+    const rightLocations = locations.slice(locationsPerColumn);
+
+    // Render left column
+    let leftY = tableY + 16;
+    for (const location of leftLocations) {
+        const hours = useSpanish ? location.hoursEs : location.hoursEn;
+        
+        doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#1a1a1a');
+        let textHeight = doc.heightOfString(location.name, { width: col1Width - colPadding });
+        doc.text(location.name, col1X, leftY, {
+            width: col1Width - colPadding,
+            align: 'left'
+        });
+        leftY += textHeight + 5;
+
+        doc.fontSize(11.5).font('Helvetica');
+        textHeight = doc.heightOfString(location.address, { width: col1Width - colPadding });
+        doc.text(location.address, col1X, leftY, {
+            width: col1Width - colPadding,
+            align: 'left'
+        });
+        leftY += textHeight + 5;
+
+        textHeight = doc.heightOfString(hours, { width: col1Width - colPadding });
+        doc.text(hours, col1X, leftY, {
+            width: col1Width - colPadding,
+            align: 'left'
+        });
+        leftY += textHeight + 15;
+    }
+
+    // Render right column
+    let rightY = tableY + 16;
+    for (const location of rightLocations) {
+        const hours = useSpanish ? location.hoursEs : location.hoursEn;
+        
+        doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#1a1a1a');
+        let textHeight = doc.heightOfString(location.name, { width: col2Width - colPadding });
+        doc.text(location.name, col2X, rightY, {
+            width: col2Width - colPadding,
+            align: 'left'
+        });
+        rightY += textHeight + 5;
+
+        doc.fontSize(11.5).font('Helvetica');
+        textHeight = doc.heightOfString(location.address, { width: col2Width - colPadding });
+        doc.text(location.address, col2X, rightY, {
+            width: col2Width - colPadding,
+            align: 'left'
+        });
+        rightY += textHeight + 5;
+
+        textHeight = doc.heightOfString(hours, { width: col2Width - colPadding });
+        doc.text(hours, col2X, rightY, {
+            width: col2Width - colPadding,
+            align: 'left'
+        });
+        rightY += textHeight + 15;
+    }
+}
+
+async function addEnglishPage(doc: any, surveyCode: string, template: LocationTemplate): Promise<void> {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 30;
@@ -97,14 +214,14 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
 
     // Display survey code below QR code as blue hyperlink
     const qrCodeTextY = margin + qrSize + 5;
-    doc.fontSize(10)
+    doc.fontSize(12)
         .font('Helvetica-Bold')
         .fillColor('#1a1a1a ')
         .text(surveyCode, qrX, qrCodeTextY, {
             width: qrSize,
             align: 'center',
             link: `https://respondent-driven-sampling.azurewebsites.net/apply-referral?surveyCode=${surveyCode}`,
-            underline: true
+            underline: false
         });
 
     currentY = margin + qrSize + 20;
@@ -156,13 +273,13 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
     doc.fillColor('#1a1a1a')
         .fontSize(14.5)
         .font('Helvetica-Bold')
-        .text('HOLLYWOOD AND SOUTH LA HUB SITES (SPA 4 and 6)', margin + 15, hubBoxY + 12, {
+        .text(template.headerEn, margin + 15, hubBoxY + 12, {
             width: contentWidth - 30,
             align: 'center'
         });
 
     // Calculate centered position for the hub sites text with blue link
-    const hubSitesFullText = 'View all Hub Sites in LA County at youthcount.org/map';
+    const hubSitesFullText = template.subheaderEn;
     const hubSitesFullTextWidth = doc.widthOfString(hubSitesFullText);
     const hubSitesStartX = margin + 15 + (contentWidth - 30 - hubSitesFullTextWidth) / 2;
 
@@ -172,7 +289,7 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
         .text('View all Hub Sites in LA County at ', hubSitesStartX, hubBoxY + 35, {
             continued: true
         })
-        .fillColor('#0066cc')
+        .fillColor('#1a1a1a')
         .text('youthcount.org/map', {
             link: 'https://youthcount.org/map',
             underline: true
@@ -181,7 +298,7 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
     doc.fontSize(9.25)
         .font('Helvetica')
         .fillColor('#1a1a1a')
-        .text('TIMES LISTED BELOW ARE DESIGNATED SURVEYING HOURS. AGENCIES OPEN OUTSIDE OF THESE HOURS.', margin + 15, hubBoxY + 55, {
+        .text(template.warningEn, margin + 15, hubBoxY + 55, {
             width: contentWidth - 30,
             align: 'center'
         });
@@ -190,146 +307,9 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
 
     // Locations table
     const tableY = currentY;
-    const tableHeight = 230;
+    renderLocationsTable(doc, template.locations, tableY, margin, contentWidth, false);
     
-    // Draw outer border (without top)
-    doc.lineWidth(2)
-        .rect(margin, tableY, contentWidth, tableHeight)
-        .stroke();
-
-    // Column configuration
-    const colPadding = 10;
-    const colGap = 10;
-    const col1X = margin + colPadding;
-    const col1Width = (contentWidth - colGap - colPadding * 2) / 2;
-    const col2X = margin + col1Width + colGap + colPadding;
-    const col2Width = col1Width;
-
-    // Left column - 3 locations
-    let leftY = tableY + 16;
-
-    // Location 1: East Hollywood
-    doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#1a1a1a');
-    let textHeight = doc.heightOfString('EAST HOLLYWOOD YP2F HQ', { width: col1Width - colPadding });
-    doc.text('EAST HOLLYWOOD YP2F HQ', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('4308 Burns Ave LA CA 90029', { width: col1Width - colPadding });
-    doc.text('4308 Burns Ave LA CA 90029', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    textHeight = doc.heightOfString('SURVEYING TUES and THURS 5:00 PM - 8:00 PM', { width: col1Width - colPadding });
-    doc.text('SURVEYING TUES and THURS 5:00 PM - 8:00 PM', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 15;
-
-    // Location 2: My Friends Place
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('HOLLYWOOD: MY FRIENDS PLACE', { width: col1Width - colPadding });
-    doc.text('HOLLYWOOD: MY FRIENDS PLACE', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('5850 Hollywood Blvd, LA CA 90028', { width: col1Width - colPadding });
-    doc.text('5850 Hollywood Blvd, LA CA 90028', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    textHeight = doc.heightOfString('SURVEYING TUES, THURS, FRI 9:30 AM - 3:30 PM', { width: col1Width - colPadding });
-    doc.text('SURVEYING TUES, THURS, FRI 9:30 AM - 3:30 PM', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 15;
-
-    // Location 3: Ruth's Place
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('SOUTH LA: RUTH\'S PLACE', { width: col1Width - colPadding });
-    doc.text('SOUTH LA: RUTH\'S PLACE', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('3101 S. Grand Los Angeles 90007', { width: col1Width - colPadding });
-    doc.text('3101 S. Grand Los Angeles 90007', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    textHeight = doc.heightOfString('SURVEYING TUES - FRI 10:00 AM - 4:00 PM', { width: col1Width - colPadding });
-    doc.text('SURVEYING TUES - FRI 10:00 AM - 4:00 PM', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-
-    // Right column - 2 locations
-    let rightY = tableY + 16;
-
-    // Location 4: LA LGBT CENTER
-    doc.fontSize(11.5)
-        .font('Helvetica-Bold')
-        .text('HOLLYWOOD: LA LGBT CENTER', col2X, rightY, {
-            width: col2Width - colPadding,
-            align: 'left'
-        });
-    rightY += 17;
-
-    doc.fontSize(11.5)
-        .font('Helvetica')
-        .text('1118 N. McCadden Pl. LA, CA 90038', col2X, rightY, {
-            width: col2Width - colPadding,
-            align: 'left'
-        });
-    rightY += 15;
-
-    doc.fontSize(11.5)
-        .text('SURVEYING: Mon - Fri 10:00AM - 6:00PM (Closed Mon Jan 19th), SAT, SUN 9:00AM - 1:00PM', col2X, rightY, {
-            width: col2Width - colPadding,
-            align: 'left'
-        });
-    rightY += 55;
-
-    // Location 5: Watts Labor
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', { width: col2Width - colPadding });
-    doc.text('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('10950 S Central Ave, Los Angeles, CA 90059', { width: col2Width - colPadding });
-    doc.text('10950 S Central Ave, Los Angeles, CA 90059', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 5;
-
-    textHeight = doc.heightOfString('SURVEYING TUES- FRI 9:00 AM - 3:30 PM', { width: col2Width - colPadding });
-    doc.text('SURVEYING TUES- FRI 9:00 AM - 3:30 PM', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-
-    currentY = tableY + tableHeight + 15;
+    currentY = tableY + 230 + 15;
 
     // Uber section
     const uberBoxY = currentY;
@@ -366,7 +346,7 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
     .font('Courier-Bold')
     .text('RKRBSSFQJFS ', { continued: true })
     .font('Helvetica')
-    .fillColor('#0066cc')
+    .fillColor('#1a1a1a')
     .text('https://r.uber.com/rkrbssfqjfs', {
         link: 'https://r.uber.com/rkrbssfqjfs',
         underline: true
@@ -401,14 +381,14 @@ async function addEnglishPage(doc: any, surveyCode: string): Promise<void> {
             align: 'left',
             continued: true
         })
-        .fillColor('#0066cc')
+        .fillColor('#1a1a1a')
         .text('youthcount.org', {
             link: 'https://youthcount.org',
             underline: true
         });
 }
 
-async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
+async function addSpanishPage(doc: any, surveyCode: string, template: LocationTemplate): Promise<void> {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
     const margin = 30;
@@ -448,14 +428,14 @@ async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
 
     // Display survey code below QR code as blue hyperlink
     const qrCodeTextY = margin + qrSize + 5;
-    doc.fontSize(10)
+    doc.fontSize(12)
         .font('Helvetica-Bold')
-        .fillColor('#1a1a1a')
+        .fillColor('#1a1a1a ')
         .text(surveyCode, qrX, qrCodeTextY, {
             width: qrSize,
             align: 'center',
             link: `https://respondent-driven-sampling.azurewebsites.net/apply-referral?surveyCode=${surveyCode}`,
-            underline: true
+            underline: false
         });
 
     currentY = margin + qrSize + 20;
@@ -507,13 +487,13 @@ async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
     doc.fillColor('#1a1a1a')
         .fontSize(14.5)
         .font('Helvetica-Bold')
-        .text('CENTROS (HUBS) DE HOLLYWOOD Y SOUTH LA (SPA 4 y 6)', margin + 15, hubBoxY + 12, {
+        .text(template.headerEs, margin + 15, hubBoxY + 12, {
             width: contentWidth - 30,
             align: 'center'
         });
 
     // Calculate centered position for the hub sites text with blue link
-    const hubSitesFullTextEs = 'Vea los Centros (Hubs) en el Condado de Los Ángeles en youthcount.org/map';
+    const hubSitesFullTextEs = template.subheaderEs;
     const hubSitesFullTextWidthEs = doc.widthOfString(hubSitesFullTextEs);
     const hubSitesStartXEs = margin + 15 + (contentWidth - 30 - hubSitesFullTextWidthEs) / 2;
 
@@ -523,7 +503,7 @@ async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
         .text('Vea los Centros (Hubs) en el Condado de Los Ángeles en ', hubSitesStartXEs, hubBoxY + 35, {
             continued: true
         })
-        .fillColor('#0066cc')
+        .fillColor('#1a1a1a')
         .text('youthcount.org/map', {
             link: 'https://youthcount.org/map',
             underline: true
@@ -532,156 +512,18 @@ async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
     doc.fontSize(9.25)
         .font('Helvetica')
         .fillColor('#1a1a1a')
-        .text('LOS HORARIOS QUE SE INDICAN SON LAS HORAS DESIGNADAS PARA LAS ENCUESTAS. LAS AGENCIAS ESTÁN ABIERTAS FUERA DE ESTOS HORARIOS.', margin + 15, hubBoxY + 55, {
+        .text(template.warningEs, margin + 15, hubBoxY + 55, {
             width: contentWidth - 30,
             align: 'center'
         });
 
     currentY = hubBoxY + hubBoxHeight;
 
-    // Locations table
+    // Locations table (Spanish version)
     const tableY = currentY;
-    const tableHeight = 230;
+    renderLocationsTable(doc, template.locations, tableY, margin, contentWidth, true);
     
-    // Draw outer border (without top)
-    doc.lineWidth(2)
-        .rect(margin, tableY, contentWidth, tableHeight)
-        .stroke();
-
-    // Column configuration
-    const colPadding = 10;
-    const colGap = 10;
-    const col1X = margin + colPadding;
-    const col1Width = (contentWidth - colGap - colPadding * 2) / 2;
-    const col2X = margin + col1Width + colGap + colPadding;
-    const col2Width = col1Width;
-
-    // Left column - 3 locations
-    let leftY = tableY + 16;
-
-    // Location 1: East Hollywood
-    doc.fontSize(11.5).font('Helvetica-Bold').fillColor('#1a1a1a');
-    let textHeight = doc.heightOfString('EAST HOLLYWOOD YP2F HQ', { width: col1Width - colPadding });
-    doc.text('EAST HOLLYWOOD YP2F HQ', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('4308 Burns Ave LA CA 90029', { width: col1Width - colPadding });
-    doc.text('4308 Burns Ave LA CA 90029', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    textHeight = doc.heightOfString('ENCUESTAS: Mar y Jue 5:00 PM - 8:00 PM', { width: col1Width - colPadding });
-    doc.text('ENCUESTAS: Mar y Jue 5:00 PM - 8:00 PM', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 15;
-
-    // Location 2: My Friends Place
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('HOLLYWOOD: MY FRIENDS PLACE', { width: col1Width - colPadding });
-    doc.text('HOLLYWOOD: MY FRIENDS PLACE', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('5850 Hollywood Blvd, LA CA 90028', { width: col1Width - colPadding });
-    doc.text('5850 Hollywood Blvd, LA CA 90028', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    textHeight = doc.heightOfString('ENCUESTAS: Mar, Jue, Vie 9:30 AM - 3:30 PM', { width: col1Width - colPadding });
-    doc.text('ENCUESTAS: Mar, Jue, Vie 9:30 AM - 3:30 PM', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 15;
-
-    // Location 3: Ruth's Place
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('SOUTH LA: RUTH\'S PLACE', { width: col1Width - colPadding });
-    doc.text('SOUTH LA: RUTH\'S PLACE', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('3101 S. Grand Los Angeles 90007', { width: col1Width - colPadding });
-    doc.text('3101 S. Grand Los Angeles 90007', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-    leftY += textHeight + 5;
-
-    textHeight = doc.heightOfString('ENCUESTAS: Mar-Vie 10:00 AM - 4:00 PM', { width: col1Width - colPadding });
-    doc.text('ENCUESTAS: Mar-Vie 10:00 AM - 4:00 PM', col1X, leftY, {
-        width: col1Width - colPadding,
-        align: 'left'
-    });
-
-    // Right column - 2 locations
-    let rightY = tableY + 16;
-
-    // Location 4: LA LGBT Center
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('HOLLYWOOD: LA LGBT CENTER', { width: col2Width - colPadding });
-    doc.text('HOLLYWOOD: LA LGBT CENTER', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('1118 N. McCadden Pl. LA, CA 90038', { width: col2Width - colPadding });
-    doc.text('1118 N. McCadden Pl. LA, CA 90038', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 5;
-
-    const lgbtHoursText = 'ENCUESTAS: Lun-Vie 10:00 AM - 6:00 PM (Cerrado el lunes 19 de enero); Sáb, Dom 9:00 AM - 1:00 PM';
-    textHeight = doc.heightOfString(lgbtHoursText, { width: col2Width - colPadding });
-    doc.text(lgbtHoursText, col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 15;
-
-    // Location 5: Watts Labor
-    doc.fontSize(11.5).font('Helvetica-Bold');
-    textHeight = doc.heightOfString('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', { width: col2Width - colPadding });
-    doc.text('WATTS/COMPTON: WATTS LABOR ACTION COMMUNITY', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 5;
-
-    doc.fontSize(11.5).font('Helvetica');
-    textHeight = doc.heightOfString('10950 S Central Ave, Los Angeles, CA 90059', { width: col2Width - colPadding });
-    doc.text('10950 S Central Ave, Los Angeles, CA 90059', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-    rightY += textHeight + 5;
-
-    textHeight = doc.heightOfString('ENCUESTAS: Mar-Vie 9:00 AM - 3:30 PM', { width: col2Width - colPadding });
-    doc.text('ENCUESTAS: Mar-Vie 9:00 AM - 3:30 PM', col2X, rightY, {
-        width: col2Width - colPadding,
-        align: 'left'
-    });
-
-    currentY = tableY + tableHeight + 15;
+    currentY = tableY + 230 + 15;
 
     // Uber section
     const uberBoxY = currentY;
@@ -718,7 +560,7 @@ async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
     .font('Courier-Bold')
     .text('RKRBSSFQJFS ', { continued: true })
     .font('Helvetica')
-    .fillColor('#0066cc')
+    .fillColor('#1a1a1a')
     .text('https://r.uber.com/rkrbssfqjfs', {
         link: 'https://r.uber.com/rkrbssfqjfs',
         underline: true
@@ -753,16 +595,23 @@ async function addSpanishPage(doc: any, surveyCode: string): Promise<void> {
             align: 'left',
             continued: true
         })
-        .fillColor('#0066cc')
+        .fillColor('#1a1a1a')
         .text('youthcount.org', {
             link: 'https://youthcount.org',
             underline: true
         });
 }
 
-async function generatePDF(seeds: any[], locationName: string): Promise<void> {
+async function generatePDF(seeds: any[], locationName: string, templateKey: string = 'metro'): Promise<void> {
     const outputDir = createOutputDirectory();
     const filepath = generateTimestampFilename(locationName, outputDir);
+
+    // Load and get the location template
+    const templates = loadTemplates();
+    const template = templates[templateKey];
+    if (!template) {
+        throw new Error(`Template "${templateKey}" not found. Available templates: ${Object.keys(templates).join(', ')}`);
+    }
 
     const doc = new PDFDocument({
         size: 'LETTER',
@@ -777,11 +626,11 @@ async function generatePDF(seeds: any[], locationName: string): Promise<void> {
     for (const seed of seeds) {
         // Add English page
         doc.addPage();
-        await addEnglishPage(doc, seed.surveyCode);
+        await addEnglishPage(doc, seed.surveyCode, template);
         
         // Add Spanish page
         doc.addPage();
-        await addSpanishPage(doc, seed.surveyCode);
+        await addSpanishPage(doc, seed.surveyCode, template);
     }
 
     doc.end();
@@ -793,6 +642,7 @@ async function generatePDF(seeds: any[], locationName: string): Promise<void> {
 
     console.log(`\n✓ PDF generated: ${filepath}`);
     console.log(`  Total pages: ${seeds.length * 2} (${seeds.length} English + ${seeds.length} Spanish)`);
+    console.log(`  Using template: ${templateKey}`);
 }
 
 // ===== Seed Generation Helper Functions =====
@@ -864,7 +714,7 @@ function printSeedsSummary(seeds: any[], locationName: string): void {
     });
 }
 
-async function generateSeeds(locationIdentifier: string, count: number): Promise<void> {
+async function generateSeeds(locationIdentifier: string, count: number, templateKey?: string): Promise<void> {
     const Location = (await import('../server/src/database/location/mongoose/location.model.js')).default;
     const Seed = (await import('../server/src/database/seed/mongoose/seed.model.js')).default;
     const { generateUniqueSurveyCode } = await import('../server/src/database/survey/survey.controller.js');
@@ -881,7 +731,7 @@ async function generateSeeds(locationIdentifier: string, count: number): Promise
         printSeedsSummary(createdSeeds, location.hubName);
 
         console.log('\n📄 Generating PDF with QR codes (LA Youth Count format)...');
-        await generatePDF(createdSeeds, location.hubName);
+        await generatePDF(createdSeeds, location.hubName, templateKey);
     } catch (error) {
         console.error('\n✗ Error:', error instanceof Error ? error.message : error);
         process.exit(1);
@@ -895,14 +745,26 @@ async function generateSeeds(locationIdentifier: string, count: number): Promise
 // Parse command line arguments
 const args = process.argv.slice(2);
 
-if (args.length !== 2) {
-    console.error('Usage: npm run generate-seeds -- <hubName|objectId> <count>');
-    console.error('Example: npm run generate-seeds -- "My Friends Place" 10');
-    console.error('Example: npm run generate-seeds -- 507f1f77bcf86cd799439011 10');
+if (args.length < 2 || args.length > 3) {
+    const templates = loadTemplates();
+    console.error('Usage: npm run generate-seeds -- <hubName|objectId> <count> [templateKey]');
+    console.error('');
+    console.error('Examples:');
+    console.error('  npm run generate-seeds -- "My Friends Place" 10');
+    console.error('  npm run generate-seeds -- 507f1f77bcf86cd799439011 100 metro');
+    console.error('  npm run generate-seeds -- 692fc19f0d01f4b400e665d0 50 east');
+    console.error('');
+    console.error('Available templates:');
+    Object.keys(templates).forEach(key => {
+        const template = templates[key];
+        console.error(`  - ${key}: ${template.headerEn}`);
+    });
+    console.error('');
+    console.error('Default template: metro');
     process.exit(1);
 }
 
-const [locationIdentifier, countStr] = args;
+const [locationIdentifier, countStr, templateKey] = args;
 const count = parseInt(countStr, 10);
 
 if (isNaN(count) || count <= 0) {
@@ -911,4 +773,4 @@ if (isNaN(count) || count <= 0) {
 }
 
 // Run the script
-generateSeeds(locationIdentifier, count);
+generateSeeds(locationIdentifier, count, templateKey);
