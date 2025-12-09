@@ -1,9 +1,15 @@
 #!/usr/bin/env tsx
 /**
  * Script to generate N seeds for a given location with LA Youth Count PDF format
- * Usage: npm run generate-seeds -- <hubName|objectId> <count>
- * Example: npm run generate-seeds -- "Test Hub" 10
- * Example: npm run generate-seeds -- 692f9100056e7a6957d0f0a2 10
+ * Usage: npm run generate-seeds -- <hubName|objectId> <count> [templateKey]
+ * 
+ * Examples:
+ *   npm run generate-seeds -- "My Friends Place" 10
+ *   npm run generate-seeds -- "My Friends Place" 10 metro
+ *   npm run generate-seeds -- 692f9100056e7a6957d0f0a2 50 east
+ * 
+ * Available templates: metro, east, antelope, south, west
+ * Default template: metro
  */
 
 import fs from 'fs';
