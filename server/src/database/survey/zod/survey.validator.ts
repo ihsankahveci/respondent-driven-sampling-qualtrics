@@ -39,8 +39,10 @@ export const updateSurveySchema = baseSurveySchema
 		// Updatable fields
 		// NOTE: Verify if we can specify which keys are updatable in responses object.
 		responses: true,
-		isCompleted: true
+		isCompleted: true,
+		notEligibleForCoupons: true
 	})
+	.partial() // Make all fields optional for updates
 	.strict()
 	.meta({ model: Survey });
 

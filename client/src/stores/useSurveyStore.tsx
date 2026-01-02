@@ -8,6 +8,7 @@ type SurveyState = {
 		responses?: any;
 		childSurveyCodes?: string[];
 		surveyCode?: string | null;
+		notEligibleForCoupons?: boolean;
 	} | null;
 };
 

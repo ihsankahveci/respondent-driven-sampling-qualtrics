@@ -1,24 +1,49 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 import { useSurveyStore } from '@/stores';
 import { QRCodeCanvas } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 import '@/styles/complete.css';
 
+import { useApi } from '@/hooks';
 import { printQrCodePdf } from '@/utils/qrCodeUtils';
 
-// Description: Displays referral QR codes and allows them to be printing
+// Description: Displays referral QR codes and allows them to be printed.
 
 export default function QrPage() {
 	const navigate = useNavigate();
-	const { surveyData } = useSurveyStore();
+	const { surveyData, getObjectId } = useSurveyStore();
+	const { surveyService } = useApi();
 	const childSurveyCodes = surveyData?.childSurveyCodes ?? [];
 	const qrRefs = useRef<(HTMLDivElement | null)[]>([]);
+	const [notEligibleForCoupons, setNotEligibleForCoupons] = useState(
+		surveyData?.notEligibleForCoupons ?? false
+	);
 
 	// Print PDF with custom paper size (62mm width)
 	const handlePrint = () => {
 		printQrCodePdf(qrRefs.current, childSurveyCodes);
+	};
+
+	// Handle checkbox change and save to database
+	const handleCheckboxChange = async (checked: boolean) => {
+		const previousValue = notEligibleForCoupons;
+		setNotEligibleForCoupons(checked); // Optimistic update
+		
+		const surveyObjectId = getObjectId();
+		if (surveyObjectId) {
+			try {
+				await surveyService.updateSurvey(surveyObjectId, {
+					notEligibleForCoupons: checked
+				});
+			} catch (error) {
+				console.error('Failed to update coupon eligibility:', error);
+				setNotEligibleForCoupons(previousValue); // Revert on failure
+				toast.error('Failed to save. Please try again.');
+			}
+		}
 	};
 
 	return (
@@ -61,8 +86,50 @@ export default function QrPage() {
 					</div>
 				</div>
 
+				{/* Checkbox for recording ineligibility */}
+				<div style={{ 
+					margin: '20px 0', 
+					padding: '15px', 
+					backgroundColor: '#f5f5f5', 
+					borderRadius: '8px',
+					display: 'flex',
+					alignItems: 'center',
+					gap: '10px'
+				}}>
+					<input
+						type="checkbox"
+						id="notEligible"
+						checked={notEligibleForCoupons}
+						onChange={(e) => handleCheckboxChange(e.target.checked)}
+						style={{ 
+							width: '18px', 
+							height: '18px',
+							cursor: 'pointer'
+						}}
+					/>
+					<label 
+						htmlFor="notEligible" 
+						style={{ 
+							margin: 0, 
+							cursor: 'pointer',
+							fontSize: '16px',
+							fontWeight: '500'
+						}}
+					>
+						Participant not eligible for coupons (no coupons provided)
+					</label>
+				</div>
+
 				<div className="qr-buttons">
-					<button className="generate-btn" onClick={handlePrint}>
+					<button 
+						className="generate-btn" 
+						onClick={handlePrint}
+						disabled={notEligibleForCoupons}
+						style={{
+							opacity: notEligibleForCoupons ? 0.5 : 1,
+							cursor: notEligibleForCoupons ? 'not-allowed' : 'pointer'
+						}}
+					>
 						Print QR Codes
 					</button>
 					<button

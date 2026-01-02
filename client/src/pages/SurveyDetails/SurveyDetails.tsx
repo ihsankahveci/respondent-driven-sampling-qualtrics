@@ -78,6 +78,9 @@ export default function SurveyDetails() {
 
 				<div className="survey-info">
 					<p>
+						<strong>Survey Code:</strong> {survey.surveyCode}
+					</p>
+					<p>
 						<strong>Employee ID:</strong> {survey.employeeId}
 					</p>
 					<p>
