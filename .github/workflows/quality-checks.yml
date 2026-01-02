@@ -28,6 +28,13 @@ jobs:
                   cd ${{ matrix.workspace }}
                   npm ci
 
+            # Client imports server code via path alias, needs server deps for type checking  
+            - name: Install server dependencies for client type checking
+              if: matrix.workspace == 'client'
+              run: |
+                  cd server
+                  npm ci
+
             - name: Run ESLint
               run: |
                   cd ${{ matrix.workspace }}
