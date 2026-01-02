@@ -2,7 +2,6 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@casl/ability": "^6.7.3",
 		"@casl/react": "^5.0.0",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.1",
@@ -32,6 +31,7 @@
 		"zustand": "^5.0.8"
 	},
 	"devDependencies": {
+		"@casl/ability": "^6.7.5",
 		"@eslint/js": "^9.36.0",
 		"@ianvs/prettier-plugin-sort-imports": "^4.4.2",
 		"@typescript-eslint/eslint-plugin": "^8.45.0",
@@ -45,6 +45,7 @@
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.22",
 		"globals": "^16.4.0",
+		"mongoose": "^9.1.1",
 		"prettier": "^3.2.4",
 		"vite": "^7.0.0",
 		"vite-plugin-checker": "^0.9.3"
