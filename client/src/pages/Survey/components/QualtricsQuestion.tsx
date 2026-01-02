@@ -76,6 +76,10 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 	// Initialize from question model to preserve state across remounts
 	const [isCompleted, setIsCompleted] = useState(question.qualtricsCompleted);
 
+	// Keep local completion state in sync with the question model
+	useEffect(() => {
+		setIsCompleted(question.qualtricsCompleted);
+	}, [question.qualtricsCompleted]);
 	// Get the survey code from the Zustand store
 	const { getSurveyCode } = useSurveyStore();
 	const surveyCode = getSurveyCode() ?? 'unknown';
