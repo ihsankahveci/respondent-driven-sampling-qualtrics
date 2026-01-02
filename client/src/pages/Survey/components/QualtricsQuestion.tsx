@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ElementFactory, Question, Serializer } from 'survey-core';
 import { SurveyQuestionElementBase, ReactQuestionFactory } from 'survey-react-ui';
+import { Button } from '@mui/material';
 import { useSurveyStore } from '@/stores';
 
 // Constants
@@ -40,6 +41,11 @@ export class QuestionQualtricsModel extends Question {
 			this.value = { completed: true, completedAt: new Date().toISOString() };
 		}
 	}
+
+	// Override isEmpty to implement required validation
+	isEmpty(): boolean {
+		return !this.qualtricsCompleted;
+	}
 }
 
 // Register the custom question type with SurveyJS
@@ -67,10 +73,32 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 	const [qualtricsUrl, setQualtricsUrl] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [configError, setConfigError] = useState<string | null>(null);
+	// Initialize from question model to preserve state across remounts
+	const [isCompleted, setIsCompleted] = useState(question.qualtricsCompleted);
 
+	// Keep local completion state in sync with the question model
+	useEffect(() => {
+		setIsCompleted(question.qualtricsCompleted);
+	}, [question.qualtricsCompleted]);
 	// Get the survey code from the Zustand store
 	const { getSurveyCode } = useSurveyStore();
 	const surveyCode = getSurveyCode() ?? 'unknown';
+
+	const handleContinue = () => {
+		if (question.survey && typeof (question.survey as any).nextPage === 'function') {
+			(question.survey as any).nextPage();
+		}
+	};
+
+	const handleManualComplete = () => {
+		const confirmed = window.confirm(
+			"Are you sure you've completed all questions in the survey above?\n\nOnly use this if the Continue button didn't appear automatically after finishing the survey."
+		);
+		if (confirmed) {
+			question.qualtricsCompleted = true;
+			setIsCompleted(true);
+		}
+	};
 
 	// Fetch Qualtrics URL from server config
 	useEffect(() => {
@@ -124,13 +152,9 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 					event.data?.message === 'endOfSurvey';
 
 				if (isEndOfSurvey) {
-					// Mark as completed and auto-advance to next page
+					// Mark as completed but don't auto-advance
 					question.qualtricsCompleted = true;
-					
-					// Safely call nextPage() with type guard
-					if (question.survey && typeof (question.survey as any).nextPage === 'function') {
-						(question.survey as any).nextPage();
-					}
+					setIsCompleted(true);
 				}
 			} catch (error) {
 				console.error('Error handling Qualtrics message:', error);
@@ -194,26 +218,81 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 					height: DEFAULT_IFRAME_HEIGHT,
 					minHeight: MIN_IFRAME_HEIGHT,
 					border: '1px solid #ddd',
-					borderRadius: '8px'
+					borderRadius: '8px',
+					opacity: isCompleted ? 0.7 : 1,
+					pointerEvents: isCompleted ? 'none' : 'auto'
 				}}
 				allow="geolocation"
 				aria-label="Embedded Qualtrics survey"
 			/>
 
-			{/* Helper text - auto-advance happens on completion */}
-			<div
-				style={{
-					marginTop: '20px',
-					textAlign: 'center',
-					padding: '10px',
-					backgroundColor: '#f5f5f5',
-					borderRadius: '8px'
-				}}
-			>
-				<p style={{ marginBottom: '0', color: '#666', fontSize: '14px' }}>
-					The survey will automatically advance when you complete the questions above.
-				</p>
-			</div>
+			{/* Show continue button when completed */}
+			{isCompleted && (
+				<div
+					style={{
+						marginTop: '20px',
+						textAlign: 'center',
+						padding: '20px',
+						backgroundColor: '#e8f5e9',
+						borderRadius: '8px',
+						border: '2px solid #4caf50'
+					}}
+				>
+					<p style={{ 
+						marginBottom: '15px', 
+						color: '#2e7d32', 
+						fontSize: '16px',
+						fontWeight: 'bold'
+					}}>
+						✓ Survey Completed Successfully!
+					</p>
+					<Button
+						variant="contained"
+						color="success"
+						size="large"
+						onClick={handleContinue}
+						type="button"
+						aria-label="Proceed to next section of survey"
+					>
+						Continue to Next Section →
+					</Button>
+				</div>
+			)}
+
+			{/* Helper text - only show when not completed */}
+			{!isCompleted && (
+				<div
+					style={{
+						marginTop: '20px',
+						textAlign: 'center',
+						padding: '10px',
+						backgroundColor: '#f5f5f5',
+						borderRadius: '8px'
+					}}
+				>
+					<p style={{ marginBottom: '8px', color: '#666', fontSize: '14px' }}>
+						Complete the survey above to continue.
+					</p>
+					<Button
+						variant="text"
+						size="small"
+						onClick={handleManualComplete}
+						type="button"
+						aria-label="Manually mark survey as complete if automatic detection failed"
+						sx={{ 
+							textTransform: 'none',
+							fontStyle: 'italic',
+							fontSize: '12px',
+							color: '#666',
+							'&:hover': {
+								color: '#333'
+							}
+						}}
+					>
+						Survey completed but continue button not showing? Click here
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 };
