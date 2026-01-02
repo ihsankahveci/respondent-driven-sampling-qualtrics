@@ -23,6 +23,7 @@ export default function SurveyEntryDashboardRow({
 
 	return (
 		<TableRow hover sx={{ '&:hover': { backgroundColor: '#f8f8f8' } }}>
+			<TableCell>{survey.surveyCode}</TableCell>
 			<TableCell>{toPacificDateTimeString(survey.createdAt)}</TableCell>
 			{/* <TableCell>
 				<Tooltip title={survey.employeeId} arrow>
@@ -42,7 +43,7 @@ export default function SurveyEntryDashboardRow({
 			</TableCell> */}
 			<TableCell>{survey.employeeName}</TableCell>
 			<TableCell>{survey.locationName ?? 'N/A'}</TableCell>
-			<TableCell>{survey.parentSurveyCode ?? 'N/A'}</TableCell>
+			{/* <TableCell>{survey.parentSurveyCode ?? 'N/A'}</TableCell> */}
 			<TableCell>
 				{survey.responses?.first_two_letters_fname ?? 'N/A'}
 			</TableCell>

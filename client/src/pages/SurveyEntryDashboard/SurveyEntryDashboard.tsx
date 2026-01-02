@@ -84,7 +84,17 @@ export default function SurveyEntryDashboard() {
 	);
 
 	const columns = [
-		{ key: 'createdAt', label: 'Date & Time', sortable: true, width: 120 },
+		{ 
+			key: 'surveyCode', 
+			label: 'Survey Code', 
+			sortable: true, 
+			width: 120 },
+		{ 
+			key: 'createdAt', 
+			label: 'Date & Time', 
+			sortable: true, 
+			width: 120 
+		},
 		// { key: 'employeeId', label: 'Employee ID', sortable: true, width: 120 },
 		{
 			key: 'employeeName',
@@ -93,12 +103,12 @@ export default function SurveyEntryDashboard() {
 			width: 120
 		},
 		{ key: 'locationName', label: 'Location', sortable: true, width: 130 },
-		{
-			key: 'parentSurveyCode',
-			label: 'Referred By Code',
-			sortable: true,
-			width: 140
-		},
+		// {
+		// 	key: 'parentSurveyCode',
+		// 	label: 'Referred By Code',
+		// 	sortable: true,
+		// 	width: 140
+		// },
 		{
 			key: 'responses.first_two_letters_fname',
 			label: 'First 2 of First',
@@ -123,7 +133,12 @@ export default function SurveyEntryDashboard() {
 			sortable: false,
 			width: 130
 		},
-		{ key: 'progress', label: 'Progress', sortable: false, width: 120 }
+		{ 
+			key: 'progress', 
+			label: 'Progress', 
+			sortable: false, 
+			width: 120 
+		}
 	];
 
 	return (
