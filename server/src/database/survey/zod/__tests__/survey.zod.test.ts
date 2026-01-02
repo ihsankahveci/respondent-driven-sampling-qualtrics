@@ -195,6 +195,35 @@ describe('Survey Type Validation Schemas', () => {
 			const result = updateSurveySchema.safeParse(invalidData);
 			expect(result.success).toBe(false);
 		});
+
+		test('should validate with only notEligibleForCoupons', () => {
+			const result = updateSurveySchema.safeParse({
+				notEligibleForCoupons: true
+			});
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.notEligibleForCoupons).toBe(true);
+			}
+		});
+
+		test('should accept notEligibleForCoupons as false', () => {
+			const result = updateSurveySchema.safeParse({
+				notEligibleForCoupons: false
+			});
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.notEligibleForCoupons).toBe(false);
+			}
+		});
+
+		test('should reject invalid notEligibleForCoupons type', () => {
+			const invalidData = {
+				notEligibleForCoupons: 'true' // Should be boolean
+			};
+
+			const result = updateSurveySchema.safeParse(invalidData);
+			expect(result.success).toBe(false);
+		});
 	});
 
 	describe('readSurveySchema', () => {

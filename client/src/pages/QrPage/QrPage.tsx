@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 
 import { useSurveyStore } from '@/stores';
 import { QRCodeCanvas } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 import '@/styles/complete.css';
@@ -9,7 +10,7 @@ import '@/styles/complete.css';
 import { useApi } from '@/hooks';
 import { printQrCodePdf } from '@/utils/qrCodeUtils';
 
-// Description: Displays referral QR codes and allows them to be printing
+// Description: Displays referral QR codes and allows them to be printed.
 
 export default function QrPage() {
 	const navigate = useNavigate();
@@ -17,7 +18,9 @@ export default function QrPage() {
 	const { surveyService } = useApi();
 	const childSurveyCodes = surveyData?.childSurveyCodes ?? [];
 	const qrRefs = useRef<(HTMLDivElement | null)[]>([]);
-	const [notEligibleForCoupons, setNotEligibleForCoupons] = useState(false);
+	const [notEligibleForCoupons, setNotEligibleForCoupons] = useState(
+		surveyData?.notEligibleForCoupons ?? false
+	);
 
 	// Print PDF with custom paper size (62mm width)
 	const handlePrint = () => {
@@ -26,7 +29,8 @@ export default function QrPage() {
 
 	// Handle checkbox change and save to database
 	const handleCheckboxChange = async (checked: boolean) => {
-		setNotEligibleForCoupons(checked);
+		const previousValue = notEligibleForCoupons;
+		setNotEligibleForCoupons(checked); // Optimistic update
 		
 		const surveyObjectId = getObjectId();
 		if (surveyObjectId) {
@@ -36,6 +40,8 @@ export default function QrPage() {
 				});
 			} catch (error) {
 				console.error('Failed to update coupon eligibility:', error);
+				setNotEligibleForCoupons(previousValue); // Revert on failure
+				toast.error('Failed to save. Please try again.');
 			}
 		}
 	};
