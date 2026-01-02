@@ -53,6 +53,8 @@ export const baseSurveySchema = z
 
 		isCompleted: z.boolean().optional(),
 
+		notEligibleForCoupons: z.boolean().optional(),
+
 		coordinates: z
 			.object({
 				latitude: z.number().min(-90).max(90),

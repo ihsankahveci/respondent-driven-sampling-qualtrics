@@ -30,6 +30,7 @@ const surveySchema = new Schema(
 			longitude: { type: Number }
 		}, // optional, immutable via pre-save hook
 		isCompleted: { type: Boolean, default: false }, // optional, mutable
+		notEligibleForCoupons: { type: Boolean, default: false }, // optional, mutable
 		deletedAt: { type: Date, default: null, select: false } // optional, mutable
 	},
 	{

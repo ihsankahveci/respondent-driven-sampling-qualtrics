@@ -13,7 +13,8 @@ import { printQrCodePdf } from '@/utils/qrCodeUtils';
 
 export default function QrPage() {
 	const navigate = useNavigate();
-	const { surveyData } = useSurveyStore();
+	const { surveyData, getObjectId } = useSurveyStore();
+	const { surveyService } = useApi();
 	const childSurveyCodes = surveyData?.childSurveyCodes ?? [];
 	const qrRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const [notEligibleForCoupons, setNotEligibleForCoupons] = useState(false);
@@ -21,6 +22,22 @@ export default function QrPage() {
 	// Print PDF with custom paper size (62mm width)
 	const handlePrint = () => {
 		printQrCodePdf(qrRefs.current, childSurveyCodes);
+	};
+
+	// Handle checkbox change and save to database
+	const handleCheckboxChange = async (checked: boolean) => {
+		setNotEligibleForCoupons(checked);
+		
+		const surveyObjectId = getObjectId();
+		if (surveyObjectId) {
+			try {
+				await surveyService.updateSurvey(surveyObjectId, {
+					notEligibleForCoupons: checked
+				});
+			} catch (error) {
+				console.error('Failed to update coupon eligibility:', error);
+			}
+		}
 	};
 
 	return (
@@ -77,7 +94,7 @@ export default function QrPage() {
 						type="checkbox"
 						id="notEligible"
 						checked={notEligibleForCoupons}
-						onChange={(e) => setNotEligibleForCoupons(e.target.checked)}
+						onChange={(e) => handleCheckboxChange(e.target.checked)}
 						style={{ 
 							width: '18px', 
 							height: '18px',
