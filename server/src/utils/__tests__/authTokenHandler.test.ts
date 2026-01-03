@@ -1,4 +1,10 @@
-import { describe, expect, it, beforeAll, afterAll, jest } from '@jest/globals';
+import {
+	afterAll,
+	beforeAll,
+	describe,
+	expect,
+	it
+} from '@jest/globals';
 import jwt from 'jsonwebtoken';
 
 // Mock environment variable for testing
@@ -21,32 +27,30 @@ describe('authTokenHandler', () => {
 
 	describe('generateAuthToken', () => {
 		it('should generate a valid JWT token', () => {
-			const token = generateAuthToken('John', 'Admin', 'EMP1234');
+			const userObjectId = '507f1f77bcf86cd799439011';
+			const token = generateAuthToken(userObjectId);
 			expect(token).toBeDefined();
 			expect(typeof token).toBe('string');
 			expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
 		});
 
-		it('should include user data in the token payload', () => {
-			const firstName = 'John';
-			const role = 'Admin';
-			const employeeId = 'EMP1234';
-			
-			const token = generateAuthToken(firstName, role, employeeId);
+		it('should include userObjectId in the token payload', () => {
+			const userObjectId = '507f1f77bcf86cd799439011';
+
+			const token = generateAuthToken(userObjectId);
 			const decoded = jwt.verify(token, TEST_SECRET) as any;
-			
-			expect(decoded.firstName).toBe(firstName);
-			expect(decoded.role).toBe(role);
-			expect(decoded.employeeId).toBe(employeeId);
+
+			expect(decoded.userObjectId).toBe(userObjectId);
 		});
 
 		it('should set token expiration to 12 hours', () => {
-			const token = generateAuthToken('John', 'Admin', 'EMP1234');
+			const userObjectId = '507f1f77bcf86cd799439011';
+			const token = generateAuthToken(userObjectId);
 			const decoded = jwt.verify(token, TEST_SECRET) as any;
-			
+
 			expect(decoded.exp).toBeDefined();
 			expect(decoded.iat).toBeDefined();
-			
+
 			// Check that expiration is approximately 12 hours from issue time
 			const expirationTime = decoded.exp - decoded.iat;
 			expect(expirationTime).toBe(12 * 60 * 60); // 12 hours in seconds
@@ -55,18 +59,17 @@ describe('authTokenHandler', () => {
 
 	describe('verifyAuthToken', () => {
 		it('should verify a valid token', () => {
-			const token = generateAuthToken('John', 'Admin', 'EMP1234');
+			const userObjectId = '507f1f77bcf86cd799439011';
+			const token = generateAuthToken(userObjectId);
 			const decoded = verifyAuthToken(token);
-			
+
 			expect(decoded).toBeDefined();
-			expect(decoded.firstName).toBe('John');
-			expect(decoded.role).toBe('Admin');
-			expect(decoded.employeeId).toBe('EMP1234');
+			expect(decoded.userObjectId).toBe(userObjectId);
 		});
 
 		it('should throw error for invalid token', () => {
 			const invalidToken = 'invalid.token.here';
-			
+
 			expect(() => {
 				verifyAuthToken(invalidToken);
 			}).toThrow();
@@ -74,11 +77,11 @@ describe('authTokenHandler', () => {
 
 		it('should throw error for token with wrong secret', () => {
 			const token = jwt.sign(
-				{ firstName: 'John', role: 'Admin', employeeId: 'EMP1234' },
+				{ userObjectId: '507f1f77bcf86cd799439011' },
 				'wrong-secret',
 				{ expiresIn: '12h' }
 			);
-			
+
 			expect(() => {
 				verifyAuthToken(token);
 			}).toThrow();
@@ -86,11 +89,11 @@ describe('authTokenHandler', () => {
 
 		it('should throw error for expired token', () => {
 			const expiredToken = jwt.sign(
-				{ firstName: 'John', role: 'Admin', employeeId: 'EMP1234' },
+				{ userObjectId: '507f1f77bcf86cd799439011' },
 				TEST_SECRET,
 				{ expiresIn: '-1s' } // Already expired
 			);
-			
+
 			expect(() => {
 				verifyAuthToken(expiredToken);
 			}).toThrow();
