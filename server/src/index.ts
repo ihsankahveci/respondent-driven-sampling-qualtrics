@@ -47,7 +47,7 @@ app.use(
 			styleSrc: ["'self'", "'unsafe-inline'"],
 			imgSrc: ["'self'", 'data:'],
 			connectSrc: ["'self'"],
-			fontSrc: ["'self'"],
+			fontSrc: ["'self'", 'data:'],
 			objectSrc: ["'none'"],
 			mediaSrc: ["'self'"],
 			frameSrc: ["'self'", 'https://*.qualtrics.com'],
@@ -89,10 +89,7 @@ app.use(compression());
 // 11. Custom middleware to force security headers on every response
 app.use((_req: Request, res: Response, next: NextFunction) => {
 	// Ensuring these headers are explicitly set on every response
-	res.setHeader(
-		'Content-Security-Policy',
-		"default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' https://*.qualtrics.com"
-	);
+	// Note: CSP is handled by helmet middleware above
 	res.setHeader('X-Frame-Options', 'DENY');
 	res.setHeader(
 		'Strict-Transport-Security',
@@ -131,10 +128,7 @@ app.use(express.urlencoded({ extended: false }));
 const securityWrapper = (router: express.Router) => {
 	return (req: Request, res: Response, next: NextFunction) => {
 		// Set security headers before passing to router
-		res.setHeader(
-			'Content-Security-Policy',
-			"default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' https://*.qualtrics.com"
-		);
+		// Note: CSP is handled by helmet middleware
 		res.setHeader('X-Frame-Options', 'DENY');
 		res.setHeader(
 			'Strict-Transport-Security',
@@ -163,10 +157,7 @@ const clientBuildPath = path.join(__dirname, '../dist');
 app.use(
 	express.static(clientBuildPath, {
 		setHeaders: (res: Response) => {
-			res.setHeader(
-				'Content-Security-Policy',
-				"default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' https://*.qualtrics.com"
-			);
+			// Note: CSP is handled by helmet middleware
 			res.setHeader('X-Frame-Options', 'DENY');
 			res.setHeader(
 				'Strict-Transport-Security',
@@ -189,10 +180,7 @@ app.use(
 // Catch-all route handler with security headers
 app.get('*', (req: Request, res: Response) => {
 	// Set security headers
-	res.setHeader(
-		'Content-Security-Policy',
-		"default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' https://*.qualtrics.com"
-	);
+	// Note: CSP is handled by helmet middleware
 	res.setHeader('X-Frame-Options', 'DENY');
 	res.setHeader(
 		'Strict-Transport-Security',
@@ -211,10 +199,7 @@ console.log(process.env.NODE_ENV);
 // Error handler with security headers
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 	// Set security headers
-	res.setHeader(
-		'Content-Security-Policy',
-		"default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
-	);
+	// Note: CSP is handled by helmet middleware
 	res.setHeader('X-Frame-Options', 'DENY');
 	res.setHeader(
 		'Strict-Transport-Security',
