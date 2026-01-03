@@ -1,5 +1,5 @@
 import {
-	afterEach,
+	afterAll,
 	beforeAll,
 	beforeEach,
 	describe,
@@ -10,8 +10,8 @@ import {
 import { NextFunction, Response } from 'express';
 import mongoose from 'mongoose';
 
-import User from '@/database/user/mongoose/user.model';
 import Survey from '@/database/survey/mongoose/survey.model';
+import User from '@/database/user/mongoose/user.model';
 import { ApprovalStatus } from '@/database/utils/constants';
 import { ROLES } from '@/permissions/constants';
 import { AuthenticatedRequest } from '@/types/auth';
@@ -38,6 +38,10 @@ describe('Auth Middleware', () => {
 		process.env.AUTH_SECRET = TEST_SECRET;
 	});
 
+	afterAll(() => {
+		process.env.AUTH_SECRET = originalEnv;
+	});
+
 	beforeEach(() => {
 		jest.clearAllMocks();
 
@@ -50,10 +54,6 @@ describe('Auth Middleware', () => {
 			sendStatus: jest.fn().mockReturnThis()
 		};
 		mockNext = jest.fn() as jest.MockedFunction<NextFunction>;
-	});
-
-	afterEach(() => {
-		process.env.AUTH_SECRET = originalEnv;
 	});
 
 	it('should reject request when no token provided', async () => {
@@ -73,7 +73,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should reject request with invalid token', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		mockReq.headers = {
 			authorization: 'Bearer invalid.token.here'
 		};
@@ -92,7 +91,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should reject request when user does not exist in database', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		const nonExistentUserId = new mongoose.Types.ObjectId().toString();
 		const token = generateAuthToken(nonExistentUserId);
 		mockReq.headers = {
@@ -116,7 +114,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should reject request when user is not approved', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		const userId = new mongoose.Types.ObjectId();
 		const locationId = new mongoose.Types.ObjectId();
 
@@ -154,7 +151,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should reject request when user is rejected', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		const userId = new mongoose.Types.ObjectId();
 		const locationId = new mongoose.Types.ObjectId();
 
@@ -192,7 +188,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should pass authentication for valid token and approved user', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		const userId = new mongoose.Types.ObjectId();
 		const locationId = new mongoose.Types.ObjectId();
 
@@ -231,7 +226,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should use latest survey location for permissions', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		const userId = new mongoose.Types.ObjectId();
 		const userLocationId = new mongoose.Types.ObjectId();
 		const surveyLocationId = new mongoose.Types.ObjectId();
@@ -276,7 +270,6 @@ describe('Auth Middleware', () => {
 	});
 
 	it('should handle token without Bearer prefix', async () => {
-		process.env.AUTH_SECRET = TEST_SECRET;
 		const userId = new mongoose.Types.ObjectId();
 		const locationId = new mongoose.Types.ObjectId();
 
