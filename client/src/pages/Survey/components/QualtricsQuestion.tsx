@@ -222,6 +222,7 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 					opacity: isCompleted ? 0.7 : 1,
 					pointerEvents: isCompleted ? 'none' : 'auto'
 				}}
+				sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
 				allow="geolocation"
 				aria-label="Embedded Qualtrics survey"
 			/>
