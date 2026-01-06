@@ -44,7 +44,7 @@ app.use(helmet());
 app.use(
 	helmet.contentSecurityPolicy({
 		directives: {
-			defaultSrc: ["'self'"],
+			defaultSrc: ["'self'", 'blob:'],
 			scriptSrc: ["'self'"],
 			styleSrc: ["'self'", "'unsafe-inline'"],
 			imgSrc: ["'self'", 'data:'],
