@@ -39,6 +39,8 @@ app.disable('x-powered-by');
 app.use(helmet());
 
 // 3. Explicit CSP settings - ensuring Content-Security-Policy is set correctly
+// Note: CSP sandbox directive removed - it sandboxes the entire application.
+// Individual iframe sandbox attributes are sufficient for controlling embedded content.
 app.use(
 	helmet.contentSecurityPolicy({
 		directives: {
@@ -51,7 +53,6 @@ app.use(
 			objectSrc: ["'none'"],
 			mediaSrc: ["'self'"],
 			frameSrc: ["'self'", 'https://*.qualtrics.com'],
-			sandbox: ['allow-forms', 'allow-scripts', 'allow-same-origin', 'allow-modals', 'allow-popups'],
 			reportUri: '/report-violation',
 			reportTo: 'report-endpoint',
 			upgradeInsecureRequests: []
