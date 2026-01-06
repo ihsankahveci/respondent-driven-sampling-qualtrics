@@ -51,7 +51,7 @@ app.use(
 			objectSrc: ["'none'"],
 			mediaSrc: ["'self'"],
 			frameSrc: ["'self'", 'https://*.qualtrics.com'],
-			sandbox: ['allow-forms', 'allow-scripts', 'allow-modals', 'allow-popups'],
+			sandbox: ['allow-forms', 'allow-scripts', 'allow-same-origin', 'allow-modals', 'allow-popups'],
 			reportUri: '/report-violation',
 			reportTo: 'report-endpoint',
 			upgradeInsecureRequests: []
