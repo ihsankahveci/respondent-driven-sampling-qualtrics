@@ -210,6 +210,24 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 
 	return (
 		<div style={{ width: '100%', minHeight: MIN_IFRAME_HEIGHT, position: 'relative' }}>
+			{/*
+				SECURITY NOTE: Sandbox attribute includes allow-same-origin
+
+				The combination of allow-scripts and allow-same-origin creates a potential
+				sandbox escape vulnerability. However, this is REQUIRED for Qualtrics because:
+
+				1. Qualtrics requires cookie access for session management
+				2. Qualtrics requires same-origin for CORS font loading
+				3. Without allow-same-origin, Qualtrics fails with "fatal: network" errors
+
+				Mitigations in place:
+				- URL is validated to only come from *.qualtrics.com (see frameSrc CSP)
+				- URL is server-controlled via QUALTRICS_SURVEY_URL environment variable
+				- CSP frameSrc restricts iframe sources to 'self' and 'https://*.qualtrics.com'
+				- Additional CSP directives provide defense-in-depth
+
+				See PR #13 discussion for security analysis and testing.
+			*/}
 			<iframe
 				src={qualtricsUrl}
 				title="Qualtrics Survey"
@@ -222,6 +240,7 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 					opacity: isCompleted ? 0.7 : 1,
 					pointerEvents: isCompleted ? 'none' : 'auto'
 				}}
+				sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
 				allow="geolocation"
 				aria-label="Embedded Qualtrics survey"
 			/>
