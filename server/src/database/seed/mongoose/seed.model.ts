@@ -15,7 +15,8 @@ const seedSchema = new Schema(
 			required: true,
 			immutable: true
 		},
-		isFallback: { type: Boolean, default: false, immutable: true } // If true, was a fallback code generated in app after survey code validation failed
+		isFallback: { type: Boolean, default: false, immutable: true }, // If true, was a fallback code generated in app after survey code validation failed
+		templateKey: { type: String, required: false, immutable: true } // Template key used for PDF generation (e.g., 'metro', 'sfv', 'av', 'east', 'sw')
 	},
 	{
 		timestamps: {
