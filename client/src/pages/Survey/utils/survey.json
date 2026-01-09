@@ -42,42 +42,6 @@
           "isRequired": true
         }
       ]
-    },
-    {
-      "name": "giftCards",
-      "title": "Gift Cards",
-      "elements": [
-        {
-          "type": "checkbox",
-          "name": "email_phone_consent",
-          "title": "Do you consent to receive your gift cards via SMS or email?",
-          "choices": [
-            {
-              "value": "email",
-              "text": "Email address"
-            },
-            {
-              "value": "phone",
-              "text": "Phone number"
-            }
-          ],
-          "showNoneItem": true
-        },
-        {
-          "type": "text",
-          "name": "email",
-          "visibleIf": "{email_phone_consent} contains 'email'",
-          "title": "What's your email address?",
-          "inputType": "email"
-        },
-        {
-          "type": "text",
-          "name": "phone",
-          "visibleIf": "{email_phone_consent} contains 'phone'",
-          "title": "What's your phone number?",
-          "inputType": "tel"
-        }
-      ]
     }
   ],
   "showQuestionNumbers": "off",

@@ -85,8 +85,15 @@ const QualtricsQuestionComponent = ({ question }: QualtricsQuestionProps) => {
 	const surveyCode = getSurveyCode() ?? 'unknown';
 
 	const handleContinue = () => {
-		if (question.survey && typeof (question.survey as any).nextPage === 'function') {
-			(question.survey as any).nextPage();
+		if (question.survey) {
+			const survey = question.survey as any;
+			// Try to complete the survey (handles last page + validation)
+			// If not on last page or has errors, it will return false and we go to next page
+			const completed = survey.tryComplete();
+			if (!completed && typeof survey.nextPage === 'function') {
+				// Not last page yet, go to next page
+				survey.nextPage();
+			}
 		}
 	};
 
