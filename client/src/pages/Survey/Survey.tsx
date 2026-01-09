@@ -185,11 +185,11 @@ const Survey = () => {
 					return;
 				}
 
+				// Always navigate to QR code page after completion
 				if (result?.data?.childSurveyCodes) {
 					setChildSurveyCodes(result.data.childSurveyCodes);
-					navigate('/qrcode');
-					return;
 				}
+				navigate('/qrcode');
 			} catch (error) {
 				// TODO: handle error (e.g., show notification)
 				console.error('Error saving survey:', error);
