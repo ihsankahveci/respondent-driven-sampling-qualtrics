@@ -92,8 +92,7 @@ export const searchSurveys = (
 		const searchableText = [
 			s.surveyCode,
 			s.employeeName,
-			s.locationName,
-			s.parentSurveyCode
+			s.locationName
 		]
 			.filter(Boolean)
 			.join(' ')
