@@ -252,6 +252,57 @@ npm run dev
 
 6. **Visit App** at http://localhost:3000.
 
+## Development & Deployment Workflow
+
+This project uses a **three-tier branching strategy** for safe, collaborative development and deployment:
+
+### Branch Structure
+
+-   **`feature/*`**: Feature branches for new development
+-   **`test`**: Staging branch that auto-deploys to staging environment (`rds-main-la-test.azurewebsites.net`)
+-   **`main`**: Production branch that deploys to production environment
+
+### Contributing Workflow
+
+```bash
+# 1. Create feature branch from main
+git checkout main
+git pull origin main
+git checkout -b feature/your-feature-name
+
+# 2. Develop and test locally
+cd server && npm run dev    # Terminal 1 (port 1234)
+cd client && npm run dev    # Terminal 2 (port 3000)
+
+# 3. Merge to test branch for staging deployment
+git checkout test
+git pull origin test
+git merge feature/your-feature-name --no-ff
+git push origin test
+# → Auto-deploys to staging via GitHub Actions
+
+# 4. Test on staging environment
+# Visit: https://rds-main-la-test.azurewebsites.net
+# Verify your changes work as expected
+
+# 5. Merge to main for production deployment
+git checkout main
+git pull origin main
+git merge test --no-ff
+git push origin main
+# → Deploys to production
+```
+
+### Deployment Environments
+
+| Environment | Branch | URL                                      | Purpose                    |
+| ----------- | ------ | ---------------------------------------- | -------------------------- |
+| Local       | Any    | `http://localhost:3000`                  | Local development          |
+| Staging     | `test` | `https://rds-main-la-test.azurewebsites.net` | Pre-production testing     |
+| Production  | `main` | `https://rds-main-la.azurewebsites.net`      | Live application           |
+
+**Note**: Staging and production use the same MongoDB database but can be configured separately in Azure App Service settings.
+
 ## Future Directions
 
 The items listed below are features our team has identified out of scope for the duration of our project. These items are still considered high importance for the project as a whole, and are highly recommended as a jumping off point for teams taking over the project in the future.
