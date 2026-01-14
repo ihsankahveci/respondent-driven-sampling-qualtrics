@@ -188,8 +188,8 @@ const Survey = () => {
 				}
 
 				// Always navigate to QR code page after completion
-				if (result?.data?.childSurveyCodes) {
-					setChildSurveyCodes(result.data.childSurveyCodes);
+				if (result?.childSurveyCodes) {
+					setChildSurveyCodes(result.childSurveyCodes);
 				}
 				navigate('/qrcode');
 			} catch (error) {
@@ -245,7 +245,6 @@ const Survey = () => {
 
 		// Initialize the survey
 		const { survey, existingData } = initializeSurvey(
-			locations,
 			surveyByRefCode as SurveyDocument | null,
 			surveyByObjectId as SurveyDocument | null,
 			parentSurvey as SurveyDocument | null,
