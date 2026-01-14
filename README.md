@@ -285,12 +285,11 @@ git push origin test
 # Visit: https://rds-main-la-test.azurewebsites.net
 # Verify your changes work as expected
 
-# 5. Merge to main for production deployment
-git checkout main
-git pull origin main
-git merge test --no-ff
-git push origin main
-# → Deploys to production
+# 5. Create PR for production deployment
+# Go to GitHub → Pull Requests → New PR
+# Base: main ← Compare: test
+# Review changes, let CI run, then merge
+# → Merging PR auto-deploys to production
 ```
 
 ### Deployment Environments
