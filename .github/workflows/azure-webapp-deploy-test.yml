@@ -1,9 +1,9 @@
-name: RDS TEST Build and Deploy Monolithic React + Node app to Azure
+name: Deploy to Staging Slot
 
 on:
   push:
     branches:
-      - feature/upstream-casl-fixes # Deploy feature branch to staging slot
+      - test # Deploy test branch to staging slot
 
 jobs:
   build-and-deploy:
