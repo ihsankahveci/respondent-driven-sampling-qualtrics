@@ -110,6 +110,53 @@ Both client and server use `@/*` for imports:
 -   **Server**: `tsconfig.json` + `tsc-alias` build step resolves to `src/*`
 -   **Client**: Vite resolves `@/*` to `src/*`, plus special `@/permissions/*` → `../server/src/permissions/*` for shared constants
 
+## Branch & Deployment Workflow
+
+This project uses a **three-tier branching strategy** for safe deployments:
+
+### Branch Structure
+
+-   **`feature/*`**: Feature branches for new development
+-   **`test`**: Staging branch that deploys to Azure staging slot (`rds-main-la-test.azurewebsites.net`)
+-   **`main`**: Production branch that deploys to production slot
+
+### Development Workflow
+
+```bash
+# 1. Create feature branch from main
+git checkout main
+git pull origin main
+git checkout -b feature/my-feature
+
+# 2. Develop and test locally
+cd server && npm run dev    # Terminal 1 (port 1234)
+cd client && npm run dev    # Terminal 2 (port 3000)
+
+# 3. Merge to test branch for staging deployment
+git checkout test
+git pull origin test
+git merge feature/my-feature --no-ff
+git push origin test
+# → Auto-deploys to staging slot via GitHub Actions
+
+# 4. Test on staging environment
+# Visit: https://rds-main-la-test.azurewebsites.net
+
+# 5. Merge to main for production deployment
+git checkout main
+git merge test --no-ff
+git push origin main
+# → Deploys to production (or manually swap slots in Azure Portal)
+```
+
+### GitHub Actions Workflows
+
+-   **`azure-webapp-deploy-test.yml`**: Deploys `test` branch to staging slot (`rds-main-la/test`)
+-   **`main_rds-main-la.yml`**: Deploys `main` branch to production slot
+
+**Staging URL**: `https://rds-main-la-test.azurewebsites.net`  
+**Production URL**: `https://rds-main-la.azurewebsites.net`
+
 ## Deployment (Azure App Service)
 
 **Build Process**:
