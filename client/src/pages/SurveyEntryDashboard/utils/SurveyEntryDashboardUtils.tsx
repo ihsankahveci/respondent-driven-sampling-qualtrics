@@ -90,7 +90,7 @@ export const searchSurveys = (
 
 	return surveys.filter(s => {
 		const searchableText = [
-			s.employeeId,
+			s.surveyCode,
 			s.employeeName,
 			s.locationName,
 			s.parentSurveyCode,
