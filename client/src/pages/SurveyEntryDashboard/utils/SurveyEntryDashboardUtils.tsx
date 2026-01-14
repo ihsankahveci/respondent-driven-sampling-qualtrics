@@ -90,13 +90,10 @@ export const searchSurveys = (
 
 	return surveys.filter(s => {
 		const searchableText = [
-			s.employeeId,
+			s.surveyCode,
 			s.employeeName,
 			s.locationName,
-			s.parentSurveyCode,
-			s.responses?.first_two_letters_fname,
-			s.responses?.first_two_letters_lname,
-			s.responses?.date_of_birth
+			s.parentSurveyCode
 		]
 			.filter(Boolean)
 			.join(' ')

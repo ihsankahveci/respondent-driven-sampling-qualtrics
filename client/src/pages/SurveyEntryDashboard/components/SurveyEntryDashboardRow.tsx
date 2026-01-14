@@ -54,12 +54,8 @@ export default function SurveyEntryDashboardRow({
 			<TableCell>{survey.locationName ?? 'N/A'}</TableCell>
 			{/* <TableCell>{survey.parentSurveyCode ?? 'N/A'}</TableCell> */}
 			<TableCell>
-				{survey.responses?.first_two_letters_fname ?? 'N/A'}
+				{survey.notEligibleForCoupons ? 'No' : 'Yes'}
 			</TableCell>
-			<TableCell>
-				{survey.responses?.first_two_letters_lname ?? 'N/A'}
-			</TableCell>
-			<TableCell>{survey.responses?.date_of_birth ?? 'N/A'}</TableCell>
 			<TableCell>
 				<Button
 					size="small"

@@ -88,22 +88,10 @@ export default function SurveyEntryDashboard() {
 		// 	width: 140
 		// },
 		{
-			key: 'responses.first_two_letters_fname',
-			label: 'First 2 of First',
+			key: 'notEligibleForCoupons',
+			label: 'Coupons Given',
 			sortable: true,
-			width: 110
-		},
-		{
-			key: 'responses.first_two_letters_lname',
-			label: 'First 2 of Last',
-			sortable: true,
-			width: 110
-		},
-		{
-			key: 'responses.date_of_birth',
-			label: 'Year of Birth',
-			sortable: true,
-			width: 110
+			width: 130
 		},
 		{
 			key: 'actions',
