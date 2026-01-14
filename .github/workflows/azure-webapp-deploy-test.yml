@@ -3,7 +3,7 @@ name: RDS TEST Build and Deploy Monolithic React + Node app to Azure
 on:
   push:
     branches:
-      - main # or your deployment branch
+      - feature/upstream-casl-fixes # Deploy feature branch to staging slot
 
 jobs:
   build-and-deploy:
@@ -57,7 +57,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: rds-test-la # Replace with your Azure App Service name
-          slot-name: "Production"
+          app-name: rds-main-la
+          slot-name: "test"
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_RDS_TEST_DEPLOY }}
           package: ./server
