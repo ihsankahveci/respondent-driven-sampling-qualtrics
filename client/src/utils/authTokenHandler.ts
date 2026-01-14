@@ -49,8 +49,8 @@ export function isTokenValid(): boolean {
 		}
 		// If no expiration date, treat as invalid for security
 		return false;
-	} catch {
-		// Token is invalid or malformed
+	} catch (error) {
+		console.error('Error validating token:', error);
 		return false;
 	}
 }
